@@ -1,4 +1,26 @@
 use std::error::Error;
+use std::io;
+
+trait BinaryStruct {
+    fn byte_size() -> usize;
+    fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>>;
+    fn to_bytes(&self) -> Vec<u8>;
+
+    fn read_from(reader: &mut impl io::Read) -> Result<Box<Self>, Box<dyn Error>> {
+        let mut buf: Vec<u8> = Vec::new();
+        buf.resize(Self::byte_size(), b'\0');
+        match reader.read_exact(&mut buf[..]) {
+            Err(e) => return Err(format!("{e}").into()),
+            _ => {}
+        }
+        Ok(Self::from_bytes(&buf)?)
+    }
+
+    fn write_to(&self, writer: &mut impl io::Write) -> Result<(), Box<dyn Error>> {
+        let bytes = self.to_bytes();
+        Ok(writer.write_all(&bytes)?)
+    }
+}
 
 #[allow(dead_code)]
 struct BARFileHeader {
@@ -32,7 +54,7 @@ impl BARFileHeader {
         })
     }
 
-    fn to_bytes(self: Self) -> Vec<u8> {
+    fn to_bytes(&self) -> Vec<u8> {
         let mut result: Vec<u8> = Vec::new();
         result.append(&mut "BAR".as_bytes().to_vec());
         result.push(self.major_version);
