@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::io;
 
+#[allow(dead_code)]
 trait BinaryStruct {
     fn byte_size() -> usize;
     fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>>;
@@ -31,10 +32,14 @@ struct BARFileHeader {
 }
 
 #[allow(dead_code)]
-impl BARFileHeader {
-    fn from_bytes(buf: &[u8]) -> Result<BARFileHeader, Box<dyn Error>> {
-        if buf.len() != 16 {
-            return Err("Buffer should be 16 bytes long.".into());
+impl BinaryStruct for BARFileHeader {
+    fn byte_size() -> usize {
+        16
+    }
+
+    fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>> {
+        if buf.len() != Self::byte_size() {
+            return Err(format!("Buffer should be {} bytes long.", Self::byte_size()).into());
         }
         let intro = str::from_utf8(&buf[0..3])?;
         if intro != "BAR" {
@@ -46,12 +51,12 @@ impl BARFileHeader {
         let version_abbrev = str::from_utf8(&buf[6..16])?
             .trim_end_matches("\0")
             .to_string();
-        Ok(BARFileHeader {
+        Ok(Box::new(BARFileHeader {
             major_version,
             minor_version,
             number_of_books,
             version_abbrev,
-        })
+        }))
     }
 
     fn to_bytes(&self) -> Vec<u8> {
