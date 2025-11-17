@@ -32,6 +32,11 @@ struct BARFileHeader {
 }
 
 #[allow(dead_code)]
+struct BarArchive {
+    header: Box<BARFileHeader>,
+}
+
+#[allow(dead_code)]
 impl BinaryStruct for BARFileHeader {
     fn byte_size() -> usize {
         16
@@ -73,6 +78,27 @@ impl BinaryStruct for BARFileHeader {
     }
 }
 
+#[allow(dead_code)]
+impl BarArchive {
+    fn open(reader: &mut impl io::Read) -> Result<Self, Box<dyn Error>> {
+        let header = BARFileHeader::read_from(reader)?;
+        Ok(BarArchive { header })
+    }
+
+    fn create(writer: &mut impl io::Write, version_abbrev: String) -> Result<Self, Box<dyn Error>> {
+        let header = BARFileHeader {
+            major_version: 2,
+            minor_version: 0,
+            number_of_books: 66,
+            version_abbrev,
+        };
+        header.write_to(writer)?;
+        Ok(BarArchive {
+            header: Box::new(header),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::io::{Read, Seek};
@@ -80,17 +106,39 @@ mod tests {
     use super::*;
 
     const NIV_HEADER: &str = "4241520200425A4C4942000000000000";
+    const ESV_HEADER: &str = "42415202014245535600000000000000";
+    const NIV_V1_HEADER: &str = "4241520100424E495600000000000000";
+    const GREEK_HEADER: &str = "424152020142677265656B0000000000";
+
+    fn test_header(hex_header: &str, expected: (u8, u8, u8, &str)) {
+        let bytes = hex::decode(hex_header).expect("Covert to bytes failed.");
+        let header = BARFileHeader::from_bytes(&bytes).expect("Construction from bytes failed");
+        assert_eq!(header.major_version, expected.0);
+        assert_eq!(header.minor_version, expected.1);
+        assert_eq!(header.number_of_books, expected.2);
+        assert_eq!(header.version_abbrev.as_str(), expected.3);
+        let bytes_out = header.to_bytes();
+        assert_eq!(hex_header, hex::encode_upper(&bytes_out));
+    }
 
     #[test]
     fn test_barfileheader() {
-        let bytes = hex::decode(NIV_HEADER).expect("Covert to bytes failed.");
-        let header = BARFileHeader::from_bytes(&bytes).expect("Construction from bytes failed");
-        assert_eq!(header.major_version, 2);
-        assert_eq!(header.minor_version, 0);
-        assert_eq!(header.number_of_books, 66);
-        assert_eq!(header.version_abbrev.as_str(), "ZLIB");
-        let bytes_out = header.to_bytes();
-        assert_eq!(NIV_HEADER, hex::encode_upper(&bytes_out));
+        test_header(NIV_HEADER, (2, 0, 66, "ZLIB"));
+    }
+
+    #[test]
+    fn test_esvheader() {
+        test_header(ESV_HEADER, (2, 1, 66, "ESV"));
+    }
+
+    #[test]
+    fn test_niv_v1_header() {
+        test_header(NIV_V1_HEADER, (1, 0, 66, "NIV"));
+    }
+
+    #[test]
+    fn test_greek_header() {
+        test_header(GREEK_HEADER, (2, 1, 66, "greek"));
     }
 
     #[test]
