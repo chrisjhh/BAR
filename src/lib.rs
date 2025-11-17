@@ -7,7 +7,7 @@ trait BinaryStruct {
     fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>>;
     fn to_bytes(&self) -> Vec<u8>;
 
-    fn read_from(reader: &mut impl io::Read) -> Result<Box<Self>, Box<dyn Error>> {
+    fn read_from(reader: &mut (impl io::Read + ?Sized)) -> Result<Box<Self>, Box<dyn Error>> {
         let mut buf: Vec<u8> = Vec::new();
         buf.resize(Self::byte_size(), b'\0');
         match reader.read_exact(&mut buf[..]) {
@@ -75,6 +75,8 @@ impl BinaryStruct for BARFileHeader {
 
 #[cfg(test)]
 mod tests {
+    use std::io::{Read, Seek};
+
     use super::*;
 
     const NIV_HEADER: &str = "4241520200425A4C4942000000000000";
@@ -89,5 +91,39 @@ mod tests {
         assert_eq!(header.version_abbrev.as_str(), "ZLIB");
         let bytes_out = header.to_bytes();
         assert_eq!(NIV_HEADER, hex::encode_upper(&bytes_out));
+    }
+
+    #[test]
+    fn test_read_from() {
+        let bytes = hex::decode(NIV_HEADER).expect("Covert to bytes failed.");
+        let mut buf = io::Cursor::new(bytes);
+        let header = BARFileHeader::read_from(&mut buf).expect("Failed to read from Cursor");
+        assert_eq!(header.major_version, 2);
+        assert_eq!(header.minor_version, 0);
+        assert_eq!(header.number_of_books, 66);
+        assert_eq!(header.version_abbrev.as_str(), "ZLIB");
+    }
+
+    #[test]
+    fn test_write_to() {
+        let mut writer = io::Cursor::new(Vec::<u8>::new());
+        let version_abbrev = String::from("ZLIB");
+        let header = BARFileHeader {
+            major_version: 2,
+            minor_version: 0,
+            number_of_books: 66,
+            version_abbrev,
+        };
+        header
+            .write_to(&mut writer)
+            .expect("Could not write to Cursor");
+        writer.rewind().expect("Could not rewind Cursor");
+        let mut buf = [0; 16];
+        let size = writer
+            .read(&mut buf[..])
+            .expect("Could not read from cursor");
+        assert!(size == 16);
+        let hex_output = hex::encode_upper(buf);
+        assert_eq!(NIV_HEADER, hex_output.as_str());
     }
 }
