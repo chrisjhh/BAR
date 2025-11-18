@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fs::File;
 use std::io;
 
 #[allow(dead_code)]
@@ -7,7 +8,7 @@ trait BinaryStruct {
     fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>>;
     fn to_bytes(&self) -> Vec<u8>;
 
-    fn read_from(reader: &mut (impl io::Read + ?Sized)) -> Result<Box<Self>, Box<dyn Error>> {
+    fn read_from(reader: &mut impl io::Read) -> Result<Box<Self>, Box<dyn Error>> {
         let mut buf: Vec<u8> = Vec::new();
         buf.resize(Self::byte_size(), b'\0');
         match reader.read_exact(&mut buf[..]) {
@@ -32,7 +33,8 @@ struct BARFileHeader {
 }
 
 #[allow(dead_code)]
-struct BarArchive {
+pub struct BarFile {
+    file: File,
     header: Box<BARFileHeader>,
 }
 
@@ -79,21 +81,24 @@ impl BinaryStruct for BARFileHeader {
 }
 
 #[allow(dead_code)]
-impl BarArchive {
-    fn open(reader: &mut impl io::Read) -> Result<Self, Box<dyn Error>> {
-        let header = BARFileHeader::read_from(reader)?;
-        Ok(BarArchive { header })
+impl BarFile {
+    pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
+        let mut file = File::open(file_path)?;
+        let header = BARFileHeader::read_from(&mut file)?;
+        Ok(Self { file, header })
     }
 
-    fn create(writer: &mut impl io::Write, version_abbrev: String) -> Result<Self, Box<dyn Error>> {
+    pub fn create(file_path: &str, version_abbrev: String) -> Result<Self, Box<dyn Error>> {
+        let mut file = File::create_new(file_path)?;
         let header = BARFileHeader {
             major_version: 2,
             minor_version: 0,
             number_of_books: 66,
             version_abbrev,
         };
-        header.write_to(writer)?;
-        Ok(BarArchive {
+        header.write_to(&mut file)?;
+        Ok(Self {
+            file,
             header: Box::new(header),
         })
     }
