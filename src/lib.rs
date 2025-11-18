@@ -40,8 +40,8 @@ pub struct BARBookIndexEntry {
 }
 
 #[allow(dead_code)]
-pub struct BARFile {
-    file: File,
+pub struct BARFile<T> {
+    file: T,
     pub header: Box<BARFileHeader>,
     pub book_index: Vec<BARBookIndexEntry>,
 }
@@ -125,23 +125,12 @@ impl std::fmt::Display for BARVersion {
 }
 
 #[allow(dead_code)]
-impl BARFile {
+impl BARFile<File> {
     pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
         let mut file = File::open(file_path)?;
         let header = BARFileHeader::read_from(&mut file)?;
-        let mut book_index: Vec<BARBookIndexEntry> = Vec::new();
-        let mut block: Vec<u8> = Vec::new();
-        block.resize(
-            BARBookIndexEntry::byte_size() * usize::from(header.number_of_books),
-            b'\0',
-        );
-        file.read_exact(&mut block[..])?;
-        for i in 0..header.number_of_books {
-            let start: usize = usize::from(i) * BARBookIndexEntry::byte_size();
-            let end: usize = start + BARBookIndexEntry::byte_size();
-            let entry = BARBookIndexEntry::from_bytes(&block[start..end])?;
-            book_index.push(*entry);
-        }
+        let book_index: Vec<BARBookIndexEntry> =
+            Self::read_book_index(&mut file, header.number_of_books)?;
         Ok(Self {
             file,
             header,
@@ -172,7 +161,9 @@ impl BARFile {
             book_index,
         })
     }
+}
 
+impl<T> BARFile<T> {
     pub fn archive_version(&self) -> BARVersion {
         BARVersion(self.header.major_version, self.header.minor_version)
     }
@@ -180,13 +171,32 @@ impl BARFile {
     pub fn bible_version(&self) -> &String {
         &self.header.version_abbrev
     }
+
+    fn read_book_index(
+        reader: &mut impl Read,
+        number_of_books: u8,
+    ) -> Result<Vec<BARBookIndexEntry>, Box<dyn Error>> {
+        let mut book_index: Vec<BARBookIndexEntry> = Vec::new();
+        let mut block: Vec<u8> = Vec::new();
+        block.resize(
+            BARBookIndexEntry::byte_size() * usize::from(number_of_books),
+            b'\0',
+        );
+        reader.read_exact(&mut block[..])?;
+        for i in 0..number_of_books {
+            let start: usize = usize::from(i) * BARBookIndexEntry::byte_size();
+            let end: usize = start + BARBookIndexEntry::byte_size();
+            let entry = BARBookIndexEntry::from_bytes(&block[start..end])?;
+            book_index.push(*entry);
+        }
+        Ok(book_index)
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use std::io::{Read, Seek};
-
     use super::*;
+    use std::io::Seek;
 
     const NIV_HEADER: &str = "4241520200425A4C4942000000000000";
     const ESV_HEADER: &str = "42415202014245535600000000000000";
