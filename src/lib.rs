@@ -1,6 +1,6 @@
 use std::error::Error;
 use std::fs::File;
-use std::io;
+use std::io::{self, Read};
 
 #[allow(dead_code)]
 trait BinaryStruct {
@@ -25,24 +25,24 @@ trait BinaryStruct {
 }
 
 #[allow(dead_code)]
-struct BARFileHeader {
-    major_version: u8,
-    minor_version: u8,
-    number_of_books: u8,
-    version_abbrev: String,
+pub struct BARFileHeader {
+    pub major_version: u8,
+    pub minor_version: u8,
+    pub number_of_books: u8,
+    pub version_abbrev: String,
 }
 
 #[allow(dead_code)]
-struct BARBookIndexEntry {
-    book_number: u8, // (1=Gen 66=Rev)
-    file_offset: u32,
+pub struct BARBookIndexEntry {
+    pub book_number: u8, // (1=Gen 66=Rev)
+    pub file_offset: u32,
 }
 
 #[allow(dead_code)]
 pub struct BarFile {
     file: File,
-    header: Box<BARFileHeader>,
-    book_index: Vec<BARBookIndexEntry>,
+    pub header: Box<BARFileHeader>,
+    pub book_index: Vec<BARBookIndexEntry>,
 }
 
 #[allow(dead_code)]
@@ -122,8 +122,16 @@ impl BarFile {
         let mut file = File::open(file_path)?;
         let header = BARFileHeader::read_from(&mut file)?;
         let mut book_index: Vec<BARBookIndexEntry> = Vec::new();
-        for _i in 0..header.number_of_books {
-            let entry = BARBookIndexEntry::read_from(&mut file)?;
+        let mut block: Vec<u8> = Vec::new();
+        block.resize(
+            BARBookIndexEntry::byte_size() * usize::from(header.number_of_books),
+            b'\0',
+        );
+        file.read_exact(&mut block[..])?;
+        for i in 0..header.number_of_books {
+            let start: usize = usize::from(i) * BARBookIndexEntry::byte_size();
+            let end: usize = start + BARBookIndexEntry::byte_size();
+            let entry = BARBookIndexEntry::from_bytes(&block[start..end])?;
             book_index.push(*entry);
         }
         Ok(Self {
