@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, Read};
 
 #[allow(dead_code)]
-trait BinaryStruct {
+pub trait BinaryStruct {
     fn byte_size() -> usize;
     fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>>;
     fn to_bytes(&self) -> Vec<u8>;
