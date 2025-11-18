@@ -1,4 +1,5 @@
 use std::error::Error;
+use std::fmt;
 use std::fs::File;
 use std::io::{self, Read};
 
@@ -39,7 +40,7 @@ pub struct BARBookIndexEntry {
 }
 
 #[allow(dead_code)]
-pub struct BarFile {
+pub struct BARFile {
     file: File,
     pub header: Box<BARFileHeader>,
     pub book_index: Vec<BARBookIndexEntry>,
@@ -116,8 +117,15 @@ impl BinaryStruct for BARBookIndexEntry {
     }
 }
 
+pub struct BARVersion(u8, u8);
+impl std::fmt::Display for BARVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}.{}", self.0, self.1)
+    }
+}
+
 #[allow(dead_code)]
-impl BarFile {
+impl BARFile {
     pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
         let mut file = File::open(file_path)?;
         let header = BARFileHeader::read_from(&mut file)?;
@@ -163,6 +171,14 @@ impl BarFile {
             header: Box::new(header),
             book_index,
         })
+    }
+
+    pub fn archive_version(&self) -> BARVersion {
+        BARVersion(self.header.major_version, self.header.minor_version)
+    }
+
+    pub fn bible_version(&self) -> &String {
+        &self.header.version_abbrev
     }
 }
 
