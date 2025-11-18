@@ -42,6 +42,7 @@ struct BARBookIndexEntry {
 pub struct BarFile {
     file: File,
     header: Box<BARFileHeader>,
+    book_index: Vec<BARBookIndexEntry>,
 }
 
 #[allow(dead_code)]
@@ -120,7 +121,16 @@ impl BarFile {
     pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
         let mut file = File::open(file_path)?;
         let header = BARFileHeader::read_from(&mut file)?;
-        Ok(Self { file, header })
+        let mut book_index: Vec<BARBookIndexEntry> = Vec::new();
+        for _i in 0..header.number_of_books {
+            let entry = BARBookIndexEntry::read_from(&mut file)?;
+            book_index.push(*entry);
+        }
+        Ok(Self {
+            file,
+            header,
+            book_index,
+        })
     }
 
     pub fn create(file_path: &str, version_abbrev: String) -> Result<Self, Box<dyn Error>> {
@@ -132,9 +142,18 @@ impl BarFile {
             version_abbrev,
         };
         header.write_to(&mut file)?;
+        let book_index: Vec<BARBookIndexEntry> = Vec::new();
+        for _i in 0..header.number_of_books {
+            let entry = BARBookIndexEntry {
+                book_number: 0,
+                file_offset: 0,
+            };
+            entry.write_to(&mut file)?;
+        }
         Ok(Self {
             file,
             header: Box::new(header),
+            book_index,
         })
     }
 }
