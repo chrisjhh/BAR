@@ -33,6 +33,12 @@ struct BARFileHeader {
 }
 
 #[allow(dead_code)]
+struct BARBookIndexEntry {
+    book_number: u8, // (1=Gen 66=Rev)
+    file_offset: u32,
+}
+
+#[allow(dead_code)]
 pub struct BarFile {
     file: File,
     header: Box<BARFileHeader>,
@@ -75,6 +81,35 @@ impl BinaryStruct for BARFileHeader {
         result.append(&mut self.version_abbrev.as_bytes().to_vec());
         while result.len() < 16 {
             result.push(b'\0');
+        }
+        result
+    }
+}
+
+impl BinaryStruct for BARBookIndexEntry {
+    fn byte_size() -> usize {
+        5
+    }
+
+    fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>> {
+        if buf.len() != Self::byte_size() {
+            return Err(format!("Buffer should be {} bytes long.", Self::byte_size()).into());
+        }
+        let book_number = buf[0];
+        let mut bytes: [u8; 4] = [0; 4];
+        bytes.copy_from_slice(&buf[1..5]);
+        let file_offset = u32::from_le_bytes(bytes);
+        Ok(Box::new(Self {
+            book_number,
+            file_offset,
+        }))
+    }
+
+    fn to_bytes(&self) -> Vec<u8> {
+        let mut result: Vec<u8> = Vec::new();
+        result.push(self.book_number);
+        for i in self.file_offset.to_le_bytes() {
+            result.push(i);
         }
         result
     }
