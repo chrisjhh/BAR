@@ -240,12 +240,56 @@ impl<T> BARFile<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Seek;
+    use std::io::{Cursor, Seek};
 
     const NIV_HEADER: &str = "4241520200425A4C4942000000000000";
     const ESV_HEADER: &str = "42415202014245535600000000000000";
     const NIV_V1_HEADER: &str = "4241520100424E495600000000000000";
     const GREEK_HEADER: &str = "424152020142677265656B0000000000";
+
+    impl<'a> BARFile<Cursor<&'a mut Vec<u8>>> {
+        fn open_from_memory(buf: &'a mut Vec<u8>) -> Self {
+            let mut file = Cursor::new(buf);
+            let header = BARFileHeader::read_from(&mut file).unwrap();
+            if header.major_version > CURRENT_VERSION.0 {
+                panic!(
+                    "Unsupported future BARFile version: {}.{}",
+                    header.major_version, header.minor_version
+                )
+            }
+            let book_index: Vec<BARBookIndexEntry> =
+                Self::read_book_index(&mut file, header.number_of_books).unwrap();
+            Self {
+                file,
+                header,
+                book_index,
+            }
+        }
+
+        fn create_in_memory(buf: &'a mut Vec<u8>, version_abbrev: String) -> Self {
+            let default = BARFileHeader::default();
+            let header = BARFileHeader {
+                version_abbrev,
+                ..default
+            };
+            Self::create_in_memory_with_options(buf, header)
+        }
+
+        fn create_in_memory_with_options(buf: &'a mut Vec<u8>, header: BARFileHeader) -> Self {
+            let mut file = Cursor::new(buf);
+            header.write_to(&mut file).unwrap();
+            let book_index = Self::new_book_index(header.number_of_books);
+            for entry in &book_index {
+                entry.write_to(&mut file).unwrap();
+            }
+            let header = Box::new(header);
+            Self {
+                file,
+                header,
+                book_index,
+            }
+        }
+    }
 
     fn test_header(hex_header: &str, expected: (u8, u8, u8, &str)) {
         let bytes = hex::decode(hex_header).expect("Covert to bytes failed.");
@@ -310,5 +354,34 @@ mod tests {
         assert!(size == 16);
         let hex_output = hex::encode_upper(buf);
         assert_eq!(NIV_HEADER, hex_output.as_str());
+    }
+
+    #[test]
+    fn test_create_in_memory() {
+        let mut buf: Vec<u8> = Vec::new();
+        let version_abbrev = String::from("NIV");
+        let bar = BARFile::create_in_memory(&mut buf, version_abbrev);
+        assert_eq!(bar.header.major_version, 2);
+        assert_eq!(bar.header.minor_version, 2);
+        assert_eq!(bar.header.number_of_books, 66);
+        assert_eq!(bar.header.version_abbrev.as_str(), "NIV");
+        assert_eq!(bar.archive_version().to_string().as_str(), "2.2");
+        assert_eq!(bar.bible_version().as_str(), "NIV");
+    }
+
+    #[test]
+    fn test_read_from_memory() {
+        let mut buf: Vec<u8> = Vec::new();
+        let version_abbrev = String::from("NIV");
+        {
+            let _bar = BARFile::create_in_memory(&mut buf, version_abbrev);
+        }
+        let bar = BARFile::open_from_memory(&mut buf);
+        assert_eq!(bar.header.major_version, 2);
+        assert_eq!(bar.header.minor_version, 2);
+        assert_eq!(bar.header.number_of_books, 66);
+        assert_eq!(bar.header.version_abbrev.as_str(), "NIV");
+        assert_eq!(bar.archive_version().to_string().as_str(), "2.2");
+        assert_eq!(bar.bible_version().as_str(), "NIV");
     }
 }
