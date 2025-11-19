@@ -3,6 +3,8 @@ use std::fmt;
 use std::fs::File;
 use std::io::{self, Read};
 
+const CURRENT_VERSION: (u8, u8) = (2, 2);
+
 #[allow(dead_code)]
 pub trait BinaryStruct {
     fn byte_size() -> usize;
@@ -88,6 +90,17 @@ impl BinaryStruct for BARFileHeader {
     }
 }
 
+impl BARFileHeader {
+    fn default() -> Self {
+        BARFileHeader {
+            major_version: CURRENT_VERSION.0,
+            minor_version: CURRENT_VERSION.1,
+            number_of_books: 66,
+            version_abbrev: String::from("N/A"),
+        }
+    }
+}
+
 impl BinaryStruct for BARBookIndexEntry {
     fn byte_size() -> usize {
         5
@@ -117,6 +130,15 @@ impl BinaryStruct for BARBookIndexEntry {
     }
 }
 
+impl BARBookIndexEntry {
+    fn default() -> Self {
+        BARBookIndexEntry {
+            book_number: 0,
+            file_offset: 0,
+        }
+    }
+}
+
 pub struct BARVersion(u8, u8);
 impl std::fmt::Display for BARVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -140,24 +162,19 @@ impl BARFile<File> {
 
     pub fn create(file_path: &str, version_abbrev: String) -> Result<Self, Box<dyn Error>> {
         let mut file = File::create_new(file_path)?;
-        let header = BARFileHeader {
-            major_version: 2,
-            minor_version: 0,
-            number_of_books: 66,
+        let default = BARFileHeader::default();
+        let header = Box::new(BARFileHeader {
             version_abbrev,
-        };
+            ..default
+        });
         header.write_to(&mut file)?;
-        let book_index: Vec<BARBookIndexEntry> = Vec::new();
-        for _i in 0..header.number_of_books {
-            let entry = BARBookIndexEntry {
-                book_number: 0,
-                file_offset: 0,
-            };
+        let book_index = Self::new_book_index(header.number_of_books);
+        for entry in &book_index {
             entry.write_to(&mut file)?;
         }
         Ok(Self {
             file,
-            header: Box::new(header),
+            header,
             book_index,
         })
     }
@@ -190,6 +207,14 @@ impl<T> BARFile<T> {
             book_index.push(*entry);
         }
         Ok(book_index)
+    }
+
+    fn new_book_index(number_of_books: u8) -> Vec<BARBookIndexEntry> {
+        let mut book_index: Vec<BARBookIndexEntry> = Vec::new();
+        book_index.resize_with(usize::from(number_of_books), || {
+            BARBookIndexEntry::default()
+        });
+        book_index
     }
 }
 
