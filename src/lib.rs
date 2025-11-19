@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read};
 
 mod barbook;
+use barbook::BARBook;
 
 const CURRENT_VERSION: (u8, u8) = (2, 2);
 
@@ -237,6 +238,21 @@ impl<T> BARFile<T> {
             BARBookIndexEntry::default()
         });
         book_index
+    }
+}
+
+impl<'a, T: io::Read + io::Seek> BARFile<T> {
+    pub fn book(&'a mut self, book_number: u8) -> Result<BARBook<'a, T>, Box<dyn Error>> {
+        let mut file_offset: u32 = 0;
+        for entry in &self.book_index {
+            if entry.book_number == book_number {
+                file_offset = entry.file_offset;
+            }
+        }
+        if file_offset == 0 {
+            return Err(format!("Book with index {} not present in archive", book_number).into());
+        }
+        BARBook::build(&mut self.file, book_number, file_offset)
     }
 }
 

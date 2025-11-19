@@ -11,13 +11,29 @@ fn main() -> io::Result<()> {
         //let size = file.read(&mut header[..])?;
         //assert!(size == 16);
         //let hex_output = hex::encode_upper(header);
-        let bar = BARFile::open(file_path).expect("Failed to open");
+        let mut bar = BARFile::open(file_path).expect("Failed to open");
         let hex_output = hex::encode_upper(bar.header.to_bytes());
         println!("{hex_output}");
         println!("Version {}", bar.archive_version());
         println!("{}", bar.bible_version());
-        for entry in bar.book_index {
+        let mut book_numbers: Vec<u8> = Vec::new();
+        for entry in &bar.book_index {
+            if entry.file_offset == 0 {
+                break;
+            }
+            book_numbers.push(entry.book_number);
             println!("{} {}", entry.book_number, entry.file_offset)
+        }
+        for index in book_numbers {
+            if index == 0 {
+                break;
+            }
+            let book = bar.book(index).unwrap();
+            println!(
+                "Book {}. Number of chapters {}.",
+                book.book_number(),
+                book.number_of_chapters(),
+            )
         }
     }
     Ok(())

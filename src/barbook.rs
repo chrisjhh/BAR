@@ -1,4 +1,5 @@
 use crate::BinaryStruct;
+use std::error::Error;
 use std::io;
 
 #[allow(dead_code)]
@@ -64,5 +65,51 @@ impl BinaryStruct for BARChapterIndexEntry {
             result.push(byte);
         }
         result
+    }
+}
+
+impl<'a, T: io::Read + io::Seek> BARBook<'a, T> {
+    pub fn build(
+        reader: &'a mut T,
+        book_number: u8,
+        file_offset: u32,
+    ) -> Result<Self, Box<dyn Error>> {
+        reader.seek(io::SeekFrom::Start(u64::from(file_offset)))?;
+        let header = *BARBookHeader::read_from(reader)?;
+        if header.book_number != book_number {
+            return Err(format!(
+                "Book index number mismatch. Expected: {}. Got: {}",
+                book_number, header.book_number
+            )
+            .into());
+        }
+        let mut buf: Vec<u8> = Vec::new();
+        let buf_size: usize =
+            usize::from(header.number_of_chapters) * BARChapterIndexEntry::byte_size();
+        buf.resize(buf_size, 0);
+        reader.read_exact(&mut buf[..])?;
+        let mut chapter_index: Vec<BARChapterIndexEntry> = Vec::new();
+        for i in 0..header.number_of_chapters {
+            let start: usize = usize::from(i) * BARChapterIndexEntry::byte_size();
+            let end: usize = start + BARChapterIndexEntry::byte_size();
+            let entry = BARChapterIndexEntry::from_bytes(&buf[start..end])?;
+            chapter_index.push(*entry);
+        }
+        Ok(BARBook {
+            reader,
+            file_offset,
+            header,
+            chapter_index,
+        })
+    }
+
+    /// Return the book number 1=Genesis 66=Revelation
+    pub fn book_number(&self) -> u8 {
+        self.header.book_number
+    }
+
+    /// Return the number of chapters
+    pub fn number_of_chapters(&self) -> u8 {
+        self.header.number_of_chapters
     }
 }
