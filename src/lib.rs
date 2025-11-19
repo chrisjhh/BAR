@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
-use std::io::{self, Read};
+use std::io::{self, BufReader, BufWriter, Read};
 
 const CURRENT_VERSION: (u8, u8) = (2, 2);
 
@@ -149,8 +149,9 @@ impl std::fmt::Display for BARVersion {
 #[allow(dead_code)]
 impl BARFile<File> {
     pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
-        let mut file = File::open(file_path)?;
-        let header = BARFileHeader::read_from(&mut file)?;
+        let file = File::open(file_path)?;
+        let mut reader = BufReader::new(file);
+        let header = BARFileHeader::read_from(&mut reader)?;
         if header.major_version > CURRENT_VERSION.0 {
             return Err(format!(
                 "Unsupported future BARFile version: {}.{}",
@@ -159,7 +160,8 @@ impl BARFile<File> {
             .into());
         }
         let book_index: Vec<BARBookIndexEntry> =
-            Self::read_book_index(&mut file, header.number_of_books)?;
+            Self::read_book_index(&mut reader, header.number_of_books)?;
+        let file = reader.into_inner();
         Ok(Self {
             file,
             header,
@@ -180,12 +182,14 @@ impl BARFile<File> {
         file_path: &str,
         header: BARFileHeader,
     ) -> Result<Self, Box<dyn Error>> {
-        let mut file = File::create_new(file_path)?;
-        header.write_to(&mut file)?;
+        let file = File::create_new(file_path)?;
+        let mut writer = BufWriter::new(file);
+        header.write_to(&mut writer)?;
         let book_index = Self::new_book_index(header.number_of_books);
         for entry in &book_index {
-            entry.write_to(&mut file)?;
+            entry.write_to(&mut writer)?;
         }
+        let file = writer.into_inner().unwrap();
         let header = Box::new(header);
         Ok(Self {
             file,
