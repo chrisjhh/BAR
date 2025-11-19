@@ -151,6 +151,13 @@ impl BARFile<File> {
     pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
         let mut file = File::open(file_path)?;
         let header = BARFileHeader::read_from(&mut file)?;
+        if header.major_version > CURRENT_VERSION.0 {
+            return Err(format!(
+                "Unsupported future BARFile version: {}.{}",
+                header.major_version, header.minor_version
+            )
+            .into());
+        }
         let book_index: Vec<BARBookIndexEntry> =
             Self::read_book_index(&mut file, header.number_of_books)?;
         Ok(Self {
@@ -161,17 +168,25 @@ impl BARFile<File> {
     }
 
     pub fn create(file_path: &str, version_abbrev: String) -> Result<Self, Box<dyn Error>> {
-        let mut file = File::create_new(file_path)?;
         let default = BARFileHeader::default();
-        let header = Box::new(BARFileHeader {
+        let header = BARFileHeader {
             version_abbrev,
             ..default
-        });
+        };
+        Self::create_with_options(file_path, header)
+    }
+
+    pub fn create_with_options(
+        file_path: &str,
+        header: BARFileHeader,
+    ) -> Result<Self, Box<dyn Error>> {
+        let mut file = File::create_new(file_path)?;
         header.write_to(&mut file)?;
         let book_index = Self::new_book_index(header.number_of_books);
         for entry in &book_index {
             entry.write_to(&mut file)?;
         }
+        let header = Box::new(header);
         Ok(Self {
             file,
             header,
