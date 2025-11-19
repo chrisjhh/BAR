@@ -30,8 +30,10 @@ fn main() -> io::Result<()> {
             }
             let book = bar.book(index).unwrap();
             println!(
-                "Book {}. Number of chapters {}.",
+                "Book {} {} ({}). Number of chapters {}.",
                 book.book_number(),
+                book.book_name(),
+                book.book_abbrev(),
                 book.number_of_chapters(),
             )
         }
