@@ -3,9 +3,10 @@ use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read};
 
+mod barbook;
+
 const CURRENT_VERSION: (u8, u8) = (2, 2);
 
-#[allow(dead_code)]
 pub trait BinaryStruct {
     fn byte_size() -> usize;
     fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>>;
@@ -27,7 +28,15 @@ pub trait BinaryStruct {
     }
 }
 
-#[allow(dead_code)]
+#[macro_export]
+macro_rules! check_size {
+    ($buf:ident) => {
+        if $buf.len() != Self::byte_size() {
+            return Err(format!("Buffer should be {} bytes long.", Self::byte_size()).into());
+        }
+    };
+}
+
 pub struct BARFileHeader {
     pub major_version: u8,
     pub minor_version: u8,
@@ -35,7 +44,6 @@ pub struct BARFileHeader {
     pub version_abbrev: String,
 }
 
-#[allow(dead_code)]
 pub struct BARBookIndexEntry {
     pub book_number: u8, // (1=Gen 66=Rev)
     pub file_offset: u32,
@@ -48,16 +56,13 @@ pub struct BARFile<T> {
     pub book_index: Vec<BARBookIndexEntry>,
 }
 
-#[allow(dead_code)]
 impl BinaryStruct for BARFileHeader {
     fn byte_size() -> usize {
         16
     }
 
     fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>> {
-        if buf.len() != Self::byte_size() {
-            return Err(format!("Buffer should be {} bytes long.", Self::byte_size()).into());
-        }
+        check_size!(buf);
         let intro = str::from_utf8(&buf[0..3])?;
         if intro != "BAR" {
             return Err("Not a BAR file header.".into());
@@ -107,9 +112,7 @@ impl BinaryStruct for BARBookIndexEntry {
     }
 
     fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>> {
-        if buf.len() != Self::byte_size() {
-            return Err(format!("Buffer should be {} bytes long.", Self::byte_size()).into());
-        }
+        check_size!(buf);
         let book_number = buf[0];
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&buf[1..5]);
@@ -367,6 +370,11 @@ mod tests {
         assert_eq!(bar.header.version_abbrev.as_str(), "NIV");
         assert_eq!(bar.archive_version().to_string().as_str(), "2.2");
         assert_eq!(bar.bible_version().as_str(), "NIV");
+        assert_eq!(bar.book_index.len(), 66);
+        for index in bar.book_index {
+            assert_eq!(index.book_number, 0);
+            assert_eq!(index.file_offset, 0);
+        }
     }
 
     #[test]
@@ -383,5 +391,10 @@ mod tests {
         assert_eq!(bar.header.version_abbrev.as_str(), "NIV");
         assert_eq!(bar.archive_version().to_string().as_str(), "2.2");
         assert_eq!(bar.bible_version().as_str(), "NIV");
+        assert_eq!(bar.book_index.len(), 66);
+        for index in bar.book_index {
+            assert_eq!(index.book_number, 0);
+            assert_eq!(index.file_offset, 0);
+        }
     }
 }
