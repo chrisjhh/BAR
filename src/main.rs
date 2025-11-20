@@ -1,4 +1,4 @@
-use bar::{BARFile, BinaryStruct};
+use bar::{BARBookIndexEntry, BARFile, BinaryStruct};
 use hex;
 use std::{env, io};
 
@@ -18,11 +18,16 @@ fn main() -> io::Result<()> {
         println!("{}", bar.bible_version());
         let mut book_numbers: Vec<u8> = Vec::new();
         for entry in &bar.book_index {
-            if entry.file_offset == 0 {
-                break;
+            match entry {
+                BARBookIndexEntry::Live {
+                    book_number,
+                    file_offset,
+                } => {
+                    book_numbers.push(*book_number);
+                    println!("{} {}", book_number, file_offset);
+                }
+                BARBookIndexEntry::Empty => break,
             }
-            book_numbers.push(entry.book_number);
-            println!("{} {}", entry.book_number, entry.file_offset)
         }
         for index in book_numbers {
             if index == 0 {

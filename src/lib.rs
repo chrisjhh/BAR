@@ -45,9 +45,12 @@ pub struct BARFileHeader {
     pub version_abbrev: String,
 }
 
-pub struct BARBookIndexEntry {
-    pub book_number: u8, // (1=Gen 66=Rev)
-    pub file_offset: u32,
+pub enum BARBookIndexEntry {
+    Live {
+        book_number: u8, // (1=Gen 66=Rev)
+        file_offset: u32,
+    },
+    Empty,
 }
 
 #[allow(dead_code)]
@@ -118,7 +121,10 @@ impl BinaryStruct for BARBookIndexEntry {
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&buf[1..5]);
         let file_offset = u32::from_le_bytes(bytes);
-        Ok(Box::new(Self {
+        if file_offset == 0 || book_number == 0 {
+            return Ok(Box::new(Self::Empty));
+        }
+        Ok(Box::new(Self::Live {
             book_number,
             file_offset,
         }))
@@ -126,20 +132,27 @@ impl BinaryStruct for BARBookIndexEntry {
 
     fn to_bytes(&self) -> Vec<u8> {
         let mut result: Vec<u8> = Vec::new();
-        result.push(self.book_number);
-        for i in self.file_offset.to_le_bytes() {
-            result.push(i);
-        }
+        match &self {
+            Self::Live {
+                book_number,
+                file_offset,
+            } => {
+                result.push(*book_number);
+                for i in file_offset.to_le_bytes() {
+                    result.push(i);
+                }
+            }
+            Self::Empty => {
+                result.resize(Self::byte_size(), b'\0');
+            }
+        };
         result
     }
 }
 
 impl BARBookIndexEntry {
     fn default() -> Self {
-        BARBookIndexEntry {
-            book_number: 0,
-            file_offset: 0,
-        }
+        Self::Empty
     }
 }
 
@@ -245,8 +258,17 @@ impl<'a, T: io::Read + io::Seek> BARFile<T> {
     pub fn book(&'a mut self, book_number: u8) -> Result<BARBook<'a, T>, Box<dyn Error>> {
         let mut file_offset: u32 = 0;
         for entry in &self.book_index {
-            if entry.book_number == book_number {
-                file_offset = entry.file_offset;
+            match entry {
+                BARBookIndexEntry::Live {
+                    book_number: entry_book_number,
+                    file_offset: entry_file_offset,
+                } => {
+                    if *entry_book_number == book_number {
+                        file_offset = *entry_file_offset;
+                        break;
+                    }
+                }
+                BARBookIndexEntry::Empty => break,
             }
         }
         if file_offset == 0 {
@@ -388,8 +410,7 @@ mod tests {
         assert_eq!(bar.bible_version().as_str(), "NIV");
         assert_eq!(bar.book_index.len(), 66);
         for index in bar.book_index {
-            assert_eq!(index.book_number, 0);
-            assert_eq!(index.file_offset, 0);
+            assert!(matches!(index, BARBookIndexEntry::Empty));
         }
     }
 
@@ -409,8 +430,7 @@ mod tests {
         assert_eq!(bar.bible_version().as_str(), "NIV");
         assert_eq!(bar.book_index.len(), 66);
         for index in bar.book_index {
-            assert_eq!(index.book_number, 0);
-            assert_eq!(index.file_offset, 0);
+            assert!(matches!(index, BARBookIndexEntry::Empty));
         }
     }
 }
