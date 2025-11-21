@@ -40,7 +40,7 @@ pub trait BinaryStruct {
         reader.read_exact(&mut buf[..])?;
         for i in 0..size {
             let start: usize = usize::from(i) * Self::byte_size();
-            let end: usize = start + BARBookIndexEntry::byte_size();
+            let end: usize = start + Self::byte_size();
             let entry = Self::from_bytes(&buf[start..end])?;
             results.push(*entry);
         }

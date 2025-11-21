@@ -81,6 +81,7 @@ const BOOK_ABBREVS: [&str; 66] = [
 ];
 
 mod barchapter;
+use barchapter::BARChapter;
 
 #[allow(dead_code)]
 pub struct BARBook<T: io::Read + io::Seek> {
@@ -199,5 +200,23 @@ impl<T: io::Read + io::Seek> BARBook<T> {
             return BOOK_ABBREVS[i - 1];
         }
         "???"
+    }
+
+    pub fn chapter(&self, chapter_number: u8) -> Result<BARChapter<T>, Box<dyn Error>> {
+        let chapter_option = self.chapter_index.get(usize::from(chapter_number));
+        let chapter_index = match chapter_option {
+            None => return Err("No such chapter".into()),
+            Some(c) => c,
+        };
+        let chapter_offset = chapter_index.additional_offset;
+
+        let file_offset = self.file_offset + chapter_offset;
+        Ok(BARChapter::build(
+            self.reader.clone(),
+            self.header.book_number,
+            chapter_number,
+            file_offset,
+            self.file_version,
+        )?)
     }
 }

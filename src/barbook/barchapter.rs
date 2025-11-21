@@ -1,5 +1,7 @@
 use crate::BinaryStruct;
 use std::cell::RefCell;
+use std::error::Error;
+use std::io;
 use std::rc::Rc;
 
 pub enum CompressionAlgorithm {
@@ -129,13 +131,76 @@ enum BlockHeader {
 struct BARBlock<T> {
     reader: Rc<RefCell<T>>,
     header: BlockHeader,
+    file_offset: u32,
     data: Option<Vec<u8>>,
+}
+#[allow(dead_code)]
+impl<T: io::Read + io::Seek> BARBlock<T> {
+    pub fn build(
+        shared_reader: Rc<RefCell<T>>,
+        file_offset: u32,
+        file_version: u8,
+    ) -> Result<Self, Box<dyn Error>> {
+        let reader = &mut *shared_reader.borrow_mut();
+        reader.seek(io::SeekFrom::Start(u64::from(file_offset)))?;
+        let header: BlockHeader = match file_version {
+            1 => BlockHeader::Ver1(*BlockHeaderV1::read_from(reader)?),
+            2 => BlockHeader::Ver2(*BlockHeaderV2::read_from(reader)?),
+            _ => return Err("Unsuporte file version".into()),
+        };
+        Ok(BARBlock {
+            reader: shared_reader.clone(),
+            header,
+            file_offset,
+            data: None,
+        })
+    }
+
+    pub fn data(&self) -> Result<Vec<u8>, Box<dyn Error>> {
+        let reader = &mut *self.reader.borrow_mut();
+        let header_size = match &self.header {
+            BlockHeader::Ver1(_) => BlockHeaderV1::byte_size(),
+            BlockHeader::Ver2(_) => BlockHeaderV2::byte_size(),
+        };
+        let file_offset = self.file_offset as usize + header_size;
+        reader.seek(io::SeekFrom::Start(file_offset as u64))?;
+        let mut buf: Vec<u8> = Vec::new();
+        let data_size = match &self.header {
+            BlockHeader::Ver1(header) => header.block_size,
+            BlockHeader::Ver2(header) => header.block_size,
+        };
+        buf.resize(data_size as usize, b'\0');
+        reader.read_exact(&mut buf[..])?;
+        Ok(buf)
+    }
 }
 
 #[allow(dead_code)]
-struct BARChapter<T> {
+pub struct BARChapter<T> {
     reader: Rc<RefCell<T>>,
+    book_number: u8,
+    chapter_number: u8,
     file_version: u8,
     file_offset: u32,
     current_block: Option<BARBlock<T>>,
+}
+
+#[allow(dead_code)]
+impl<T: io::Read + io::Seek> BARChapter<T> {
+    pub fn build(
+        shared_reader: Rc<RefCell<T>>,
+        book_number: u8,
+        chapter_number: u8,
+        file_offset: u32,
+        file_version: u8,
+    ) -> Result<Self, Box<dyn Error>> {
+        Ok(BARChapter {
+            reader: shared_reader,
+            book_number,
+            chapter_number,
+            file_version,
+            file_offset,
+            current_block: None,
+        })
+    }
 }
