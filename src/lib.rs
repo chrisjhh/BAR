@@ -2,7 +2,7 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter, Read};
+use std::io::{self, BufReader, BufWriter};
 use std::rc::Rc;
 
 mod barbook;
@@ -28,6 +28,35 @@ pub trait BinaryStruct {
     fn write_to(&self, writer: &mut impl io::Write) -> Result<(), Box<dyn Error>> {
         let bytes = self.to_bytes();
         Ok(writer.write_all(&bytes)?)
+    }
+
+    fn read_array(size: usize, reader: &mut impl io::Read) -> Result<Vec<Self>, Box<dyn Error>>
+    where
+        Self: Sized,
+    {
+        let mut buf: Vec<u8> = Vec::new();
+        let mut results: Vec<Self> = Vec::new();
+        buf.resize(size * Self::byte_size(), b'\0');
+        reader.read_exact(&mut buf[..])?;
+        for i in 0..size {
+            let start: usize = usize::from(i) * Self::byte_size();
+            let end: usize = start + BARBookIndexEntry::byte_size();
+            let entry = Self::from_bytes(&buf[start..end])?;
+            results.push(*entry);
+        }
+        Ok(results)
+    }
+
+    fn write_array(entries: &Vec<Self>, writer: &mut impl io::Write) -> Result<(), Box<dyn Error>>
+    where
+        Self: Sized,
+    {
+        let mut buf: Vec<u8> = Vec::new();
+        for entry in entries {
+            buf.append(&mut entry.to_bytes());
+        }
+        writer.write_all(&buf)?;
+        Ok(())
     }
 }
 
@@ -209,7 +238,7 @@ impl BARFile<File> {
             .into());
         }
         let book_index: Vec<BARBookIndexEntry> =
-            Self::read_book_index(&mut reader, header.number_of_books)?;
+            BARBookIndexEntry::read_array(usize::from(header.number_of_books), &mut reader)?;
         let file = reader.into_inner();
         Ok(Self {
             file: Rc::new(RefCell::new(file)),
@@ -236,9 +265,7 @@ impl BARFile<File> {
         let mut writer = BufWriter::new(file);
         header.write_to(&mut writer)?;
         let book_index = Self::new_book_index(header.number_of_books);
-        for entry in &book_index {
-            entry.write_to(&mut writer)?;
-        }
+        BARBookIndexEntry::write_array(&book_index, &mut writer)?;
         let file = writer.into_inner().unwrap();
         let header = Box::new(header);
         Ok(Self {
@@ -257,26 +284,6 @@ impl<T> BARFile<T> {
 
     pub fn bible_version(&self) -> &String {
         &self.header.version_abbrev
-    }
-
-    fn read_book_index(
-        reader: &mut impl Read,
-        number_of_books: u8,
-    ) -> Result<Vec<BARBookIndexEntry>, Box<dyn Error>> {
-        let mut book_index: Vec<BARBookIndexEntry> = Vec::new();
-        let mut block: Vec<u8> = Vec::new();
-        block.resize(
-            BARBookIndexEntry::byte_size() * usize::from(number_of_books),
-            b'\0',
-        );
-        reader.read_exact(&mut block[..])?;
-        for i in 0..number_of_books {
-            let start: usize = usize::from(i) * BARBookIndexEntry::byte_size();
-            let end: usize = start + BARBookIndexEntry::byte_size();
-            let entry = BARBookIndexEntry::from_bytes(&block[start..end])?;
-            book_index.push(*entry);
-        }
-        Ok(book_index)
     }
 
     fn new_book_index(number_of_books: u8) -> Vec<BARBookIndexEntry> {
@@ -315,7 +322,7 @@ impl<'a, T: io::Read + io::Seek> BARFile<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::{Cursor, Seek};
+    use std::io::{Cursor, Read, Seek};
 
     const NIV_HEADER: &str = "4241520200425A4C4942000000000000";
     const ESV_HEADER: &str = "42415202014245535600000000000000";
@@ -333,7 +340,8 @@ mod tests {
                 )
             }
             let book_index: Vec<BARBookIndexEntry> =
-                Self::read_book_index(&mut file, header.number_of_books).unwrap();
+                BARBookIndexEntry::read_array(usize::from(header.number_of_books), &mut file)
+                    .unwrap();
             Self {
                 file: Rc::new(RefCell::new(file)),
                 header,
