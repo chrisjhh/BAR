@@ -80,6 +80,8 @@ const BOOK_ABBREVS: [&str; 66] = [
     "Phm", "Heb", "Jas", "1Pe", "2Pe", "1Jn", "2Jn", "3Jn", "Jude", "Rev",
 ];
 
+mod barchapter;
+
 #[allow(dead_code)]
 pub struct BARBook<T: io::Read + io::Seek> {
     reader: Rc<RefCell<T>>,
@@ -105,9 +107,7 @@ impl BinaryStruct for BARBookHeader {
     }
 
     fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn std::error::Error>> {
-        if buf.len() != Self::byte_size() {
-            return Err(format!("Buffer should be {} bytes long.", Self::byte_size()).into());
-        }
+        super::check_size!(buf);
         let book_number = buf[0];
         let number_of_chapters = buf[1];
         Ok(Box::new(BARBookHeader {
