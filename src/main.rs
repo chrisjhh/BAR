@@ -11,7 +11,7 @@ fn main() -> io::Result<()> {
         //let size = file.read(&mut header[..])?;
         //assert!(size == 16);
         //let hex_output = hex::encode_upper(header);
-        let mut bar = BARFile::open(file_path).expect("Failed to open");
+        let bar = BARFile::open(file_path).expect("Failed to open");
         let hex_output = hex::encode_upper(bar.header.to_bytes());
         println!("{hex_output}");
         println!("Version {}", bar.archive_version());
@@ -29,11 +29,7 @@ fn main() -> io::Result<()> {
                 BARBookIndexEntry::Empty => break,
             }
         }
-        for index in book_numbers {
-            if index == 0 {
-                break;
-            }
-            let book = bar.book(index).unwrap();
+        for book in bar {
             println!(
                 "Book {} {} ({}). Number of chapters {}.",
                 book.book_number(),

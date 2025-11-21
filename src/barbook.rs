@@ -1,6 +1,8 @@
 use crate::BinaryStruct;
+use std::cell::RefCell;
 use std::error::Error;
 use std::io;
+use std::rc::Rc;
 
 const BOOK_NAMES: [&str; 66] = [
     "Genesis",
@@ -79,8 +81,8 @@ const BOOK_ABBREVS: [&str; 66] = [
 ];
 
 #[allow(dead_code)]
-pub struct BARBook<'a, T: io::Read> {
-    reader: &'a mut T,
+pub struct BARBook<T: io::Read + io::Seek> {
+    reader: Rc<RefCell<T>>,
     file_offset: u32,
     header: BARBookHeader,
     chapter_index: Vec<BARChapterIndexEntry>,
@@ -144,12 +146,13 @@ impl BinaryStruct for BARChapterIndexEntry {
     }
 }
 
-impl<'a, T: io::Read + io::Seek> BARBook<'a, T> {
+impl<'a, T: io::Read + io::Seek> BARBook<T> {
     pub fn build(
-        reader: &'a mut T,
+        shared_reader: Rc<RefCell<T>>,
         book_number: u8,
         file_offset: u32,
     ) -> Result<Self, Box<dyn Error>> {
+        let reader = &mut *shared_reader.borrow_mut();
         reader.seek(io::SeekFrom::Start(u64::from(file_offset)))?;
         let header = *BARBookHeader::read_from(reader)?;
         if header.book_number != book_number {
@@ -172,7 +175,7 @@ impl<'a, T: io::Read + io::Seek> BARBook<'a, T> {
             chapter_index.push(*entry);
         }
         Ok(BARBook {
-            reader,
+            reader: shared_reader.clone(),
             file_offset,
             header,
             chapter_index,

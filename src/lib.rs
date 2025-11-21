@@ -1,7 +1,9 @@
+use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufReader, BufWriter, Read};
+use std::rc::Rc;
 
 mod barbook;
 use barbook::BARBook;
@@ -55,9 +57,10 @@ pub enum BARBookIndexEntry {
 
 #[allow(dead_code)]
 pub struct BARFile<T> {
-    file: T,
+    file: Rc<RefCell<T>>,
     pub header: Box<BARFileHeader>,
     pub book_index: Vec<BARBookIndexEntry>,
+    iterator_index: Option<usize>,
 }
 
 impl BinaryStruct for BARFileHeader {
@@ -163,6 +166,35 @@ impl std::fmt::Display for BARVersion {
     }
 }
 
+impl<T: io::Read + io::Seek> Iterator for BARFile<T> {
+    type Item = BARBook<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current_index: Option<usize> = match self.iterator_index {
+            None if self.book_index.is_empty() => None,
+            None => Some(0),
+            Some(x) if x + 1 >= self.book_index.len() => None,
+            Some(x) => Some(x + 1),
+        };
+        self.iterator_index = current_index;
+        let i = match current_index {
+            None => return None,
+            Some(index) => index,
+        };
+        let entry = &self.book_index[i];
+        match entry {
+            BARBookIndexEntry::Empty => None,
+            BARBookIndexEntry::Live {
+                book_number,
+                file_offset: _,
+            } => match self.book(*book_number) {
+                Ok(book) => Some(book),
+                _ => None,
+            },
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl BARFile<File> {
     pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
@@ -180,9 +212,10 @@ impl BARFile<File> {
             Self::read_book_index(&mut reader, header.number_of_books)?;
         let file = reader.into_inner();
         Ok(Self {
-            file,
+            file: Rc::new(RefCell::new(file)),
             header,
             book_index,
+            iterator_index: None,
         })
     }
 
@@ -209,9 +242,10 @@ impl BARFile<File> {
         let file = writer.into_inner().unwrap();
         let header = Box::new(header);
         Ok(Self {
-            file,
+            file: Rc::new(RefCell::new(file)),
             header,
             book_index,
+            iterator_index: None,
         })
     }
 }
@@ -255,7 +289,7 @@ impl<T> BARFile<T> {
 }
 
 impl<'a, T: io::Read + io::Seek> BARFile<T> {
-    pub fn book(&'a mut self, book_number: u8) -> Result<BARBook<'a, T>, Box<dyn Error>> {
+    pub fn book(&'a mut self, book_number: u8) -> Result<BARBook<T>, Box<dyn Error>> {
         let mut file_offset: u32 = 0;
         for entry in &self.book_index {
             match entry {
@@ -274,7 +308,7 @@ impl<'a, T: io::Read + io::Seek> BARFile<T> {
         if file_offset == 0 {
             return Err(format!("Book with index {} not present in archive", book_number).into());
         }
-        BARBook::build(&mut self.file, book_number, file_offset)
+        BARBook::build(self.file.clone(), book_number, file_offset)
     }
 }
 
@@ -301,9 +335,10 @@ mod tests {
             let book_index: Vec<BARBookIndexEntry> =
                 Self::read_book_index(&mut file, header.number_of_books).unwrap();
             Self {
-                file,
+                file: Rc::new(RefCell::new(file)),
                 header,
                 book_index,
+                iterator_index: None,
             }
         }
 
@@ -325,9 +360,10 @@ mod tests {
             }
             let header = Box::new(header);
             Self {
-                file,
+                file: Rc::new(RefCell::new(file)),
                 header,
                 book_index,
+                iterator_index: None,
             }
         }
     }
