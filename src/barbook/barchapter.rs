@@ -135,6 +135,7 @@ struct BARBlock<T> {
 #[allow(dead_code)]
 struct BARChapter<T> {
     reader: Rc<RefCell<T>>,
+    file_version: u8,
     file_offset: u32,
     current_block: Option<BARBlock<T>>,
 }

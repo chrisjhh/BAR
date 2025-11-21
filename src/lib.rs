@@ -315,7 +315,12 @@ impl<'a, T: io::Read + io::Seek> BARFile<T> {
         if file_offset == 0 {
             return Err(format!("Book with index {} not present in archive", book_number).into());
         }
-        BARBook::build(self.file.clone(), book_number, file_offset)
+        BARBook::build(
+            self.file.clone(),
+            book_number,
+            file_offset,
+            self.header.major_version,
+        )
     }
 }
 

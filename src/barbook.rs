@@ -85,6 +85,7 @@ mod barchapter;
 #[allow(dead_code)]
 pub struct BARBook<T: io::Read + io::Seek> {
     reader: Rc<RefCell<T>>,
+    file_version: u8,
     file_offset: u32,
     header: BARBookHeader,
     chapter_index: Vec<BARChapterIndexEntry>,
@@ -146,11 +147,12 @@ impl BinaryStruct for BARChapterIndexEntry {
     }
 }
 
-impl<'a, T: io::Read + io::Seek> BARBook<T> {
+impl<T: io::Read + io::Seek> BARBook<T> {
     pub fn build(
         shared_reader: Rc<RefCell<T>>,
         book_number: u8,
         file_offset: u32,
+        file_version: u8,
     ) -> Result<Self, Box<dyn Error>> {
         let reader = &mut *shared_reader.borrow_mut();
         reader.seek(io::SeekFrom::Start(u64::from(file_offset)))?;
@@ -162,23 +164,14 @@ impl<'a, T: io::Read + io::Seek> BARBook<T> {
             )
             .into());
         }
-        let mut buf: Vec<u8> = Vec::new();
-        let buf_size: usize =
-            usize::from(header.number_of_chapters) * BARChapterIndexEntry::byte_size();
-        buf.resize(buf_size, 0);
-        reader.read_exact(&mut buf[..])?;
-        let mut chapter_index: Vec<BARChapterIndexEntry> = Vec::new();
-        for i in 0..header.number_of_chapters {
-            let start: usize = usize::from(i) * BARChapterIndexEntry::byte_size();
-            let end: usize = start + BARChapterIndexEntry::byte_size();
-            let entry = BARChapterIndexEntry::from_bytes(&buf[start..end])?;
-            chapter_index.push(*entry);
-        }
+        let chapter_index =
+            BARChapterIndexEntry::read_array(usize::from(header.number_of_chapters), reader)?;
         Ok(BARBook {
             reader: shared_reader.clone(),
             file_offset,
             header,
             chapter_index,
+            file_version,
         })
     }
 
