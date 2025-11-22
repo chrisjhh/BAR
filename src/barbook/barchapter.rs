@@ -203,4 +203,12 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
             current_block: None,
         })
     }
+
+    pub fn chapter_number(&self) -> u8 {
+        self.chapter_number
+    }
+
+    pub fn book_number(&self) -> u8 {
+        self.book_number
+    }
 }

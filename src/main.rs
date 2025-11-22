@@ -36,7 +36,15 @@ fn main() -> io::Result<()> {
                 book.book_name(),
                 book.book_abbrev(),
                 book.number_of_chapters(),
-            )
+            );
+            for i in 0..book.number_of_chapters() {
+                let chapter = book.chapter(i);
+                if let Some(chapt) = chapter {
+                    assert_eq!(i, chapt.chapter_number());
+                    assert_eq!(chapt.book_number(), book.book_number());
+                    println!("  chapter {i} present");
+                }
+            }
         }
     }
     Ok(())

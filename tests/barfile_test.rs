@@ -17,18 +17,45 @@ fn test_barfile() {
     assert_eq!(book.as_ref().unwrap().book_abbrev(), "Da");
     assert_eq!(book.as_ref().unwrap().book_name(), "Daniel");
     assert_eq!(book.as_ref().unwrap().number_of_chapters(), 12);
+    let chapt = book.as_ref().unwrap().chapter(1);
+    assert!(chapt.is_some());
+    assert_eq!(chapt.as_ref().unwrap().chapter_number(), 1);
+    assert_eq!(
+        chapt.as_ref().unwrap().book_number(),
+        book.as_ref().unwrap().book_number()
+    );
+    let chapt = book.as_ref().unwrap().chapter(2);
+    assert!(chapt.is_none());
     let book = &bar.next();
     assert!(book.is_some());
     assert_eq!(book.as_ref().unwrap().book_number(), 1u8);
     assert_eq!(book.as_ref().unwrap().book_abbrev(), "Ge");
     assert_eq!(book.as_ref().unwrap().book_name(), "Genesis");
     assert_eq!(book.as_ref().unwrap().number_of_chapters(), 50);
+    let chapt = book.as_ref().unwrap().chapter(1);
+    assert!(chapt.is_some());
+    assert_eq!(chapt.as_ref().unwrap().chapter_number(), 1);
+    assert_eq!(
+        chapt.as_ref().unwrap().book_number(),
+        book.as_ref().unwrap().book_number()
+    );
+    let chapt = book.as_ref().unwrap().chapter(2);
+    assert!(chapt.is_none());
     let book = &bar.next();
     assert!(book.is_some());
     assert_eq!(book.as_ref().unwrap().book_number(), 49u8);
     assert_eq!(book.as_ref().unwrap().book_abbrev(), "Eph");
     assert_eq!(book.as_ref().unwrap().book_name(), "Ephesians");
     assert_eq!(book.as_ref().unwrap().number_of_chapters(), 6);
+    let chapt = book.as_ref().unwrap().chapter(4);
+    assert!(chapt.is_some());
+    assert_eq!(chapt.as_ref().unwrap().chapter_number(), 4);
+    assert_eq!(
+        chapt.as_ref().unwrap().book_number(),
+        book.as_ref().unwrap().book_number()
+    );
+    let chapt = book.as_ref().unwrap().chapter(5);
+    assert!(chapt.is_none());
     let book = &bar.next();
     assert!(book.is_none());
     assert_eq!(

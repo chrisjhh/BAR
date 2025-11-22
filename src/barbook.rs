@@ -99,8 +99,11 @@ struct BARBookHeader {
 }
 
 #[allow(dead_code)]
-struct BARChapterIndexEntry {
-    additional_offset: u32, // file offset of chapter from start of book entry
+enum BARChapterIndexEntry {
+    Live {
+        additional_offset: u32, // file offset of chapter from start of book entry
+    },
+    Empty,
 }
 
 impl BinaryStruct for BARBookHeader {
@@ -136,13 +139,25 @@ impl BinaryStruct for BARChapterIndexEntry {
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&buf[0..4]);
         let additional_offset = u32::from_le_bytes(bytes);
-        Ok(Box::new(BARChapterIndexEntry { additional_offset }))
+        match additional_offset {
+            0 => Ok(Box::new(BARChapterIndexEntry::Empty)),
+            offset => Ok(Box::new(BARChapterIndexEntry::Live {
+                additional_offset: offset,
+            })),
+        }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
         let mut result: Vec<u8> = Vec::new();
-        for byte in self.additional_offset.to_le_bytes() {
-            result.push(byte);
+        match self {
+            BARChapterIndexEntry::Live { additional_offset } => {
+                for byte in additional_offset.to_le_bytes() {
+                    result.push(byte);
+                }
+            }
+            BARChapterIndexEntry::Empty => {
+                result.resize(BARChapterIndexEntry::byte_size(), b'\0');
+            }
         }
         result
     }
@@ -202,21 +217,31 @@ impl<T: io::Read + io::Seek> BARBook<T> {
         "???"
     }
 
-    pub fn chapter(&self, chapter_number: u8) -> Result<BARChapter<T>, Box<dyn Error>> {
-        let chapter_option = self.chapter_index.get(usize::from(chapter_number));
-        let chapter_index = match chapter_option {
-            None => return Err("No such chapter".into()),
-            Some(c) => c,
-        };
-        let chapter_offset = chapter_index.additional_offset;
-
-        let file_offset = self.file_offset + chapter_offset;
-        Ok(BARChapter::build(
-            self.reader.clone(),
-            self.header.book_number,
-            chapter_number,
-            file_offset,
-            self.file_version,
-        )?)
+    pub fn chapter(&self, chapter_number: u8) -> Option<BARChapter<T>> {
+        // First chapter is 1 but array starts at zero
+        if chapter_number == 0 {
+            return None;
+        }
+        let index = chapter_number - 1;
+        let chapter_option = self.chapter_index.get(usize::from(index));
+        if chapter_option.is_none() {
+            return None;
+        }
+        match chapter_option.unwrap() {
+            BARChapterIndexEntry::Empty => None,
+            BARChapterIndexEntry::Live { additional_offset } => {
+                let file_offset = self.file_offset + additional_offset;
+                match BARChapter::build(
+                    self.reader.clone(),
+                    self.header.book_number,
+                    chapter_number,
+                    file_offset,
+                    self.file_version,
+                ) {
+                    Ok(chapter) => Some(chapter),
+                    _ => None,
+                }
+            }
+        }
     }
 }
