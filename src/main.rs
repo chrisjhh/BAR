@@ -43,6 +43,7 @@ fn main() -> io::Result<()> {
                     assert_eq!(i, chapt.chapter_number());
                     assert_eq!(chapt.book_number(), book.book_number());
                     println!("  chapter {i} present");
+                    println!("{}", chapt.first_block().unwrap().decompress())
                 }
             }
         }

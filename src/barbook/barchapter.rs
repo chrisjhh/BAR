@@ -1,7 +1,7 @@
 use crate::BinaryStruct;
 use std::cell::RefCell;
 use std::error::Error;
-use std::io;
+use std::io::{self, Read};
 use std::rc::Rc;
 
 pub enum CompressionAlgorithm {
@@ -127,8 +127,9 @@ enum BlockHeader {
     Ver2(BlockHeaderV2),
 }
 
+//TODO: Remove pub
 #[allow(dead_code)]
-struct BARBlock<T> {
+pub struct BARBlock<T> {
     reader: Rc<RefCell<T>>,
     header: BlockHeader,
     file_offset: u32,
@@ -173,6 +174,41 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
         reader.read_exact(&mut buf[..])?;
         Ok(buf)
     }
+
+    fn compression_algorith(&self) -> &CompressionAlgorithm {
+        match &self.header {
+            BlockHeader::Ver1(..) => &CompressionAlgorithm::Lzo,
+            BlockHeader::Ver2(header) => &header.compression_algorithm,
+        }
+    }
+
+    pub fn decompress(&self) -> String {
+        use flate2::read::{GzDecoder, ZlibDecoder};
+        use lzokay;
+        let data = self.data().unwrap();
+        match self.compression_algorith() {
+            CompressionAlgorithm::None => String::from_utf8(data).unwrap(),
+            CompressionAlgorithm::Lzo => {
+                let mut buf: Vec<u8> = Vec::new();
+                buf.resize(5 * 1024, b'\0');
+                let size = lzokay::decompress::decompress(&data, &mut buf).unwrap();
+                String::from_utf8(buf[0..size].into()).unwrap()
+            }
+            CompressionAlgorithm::GZip => {
+                let mut decoder = GzDecoder::new(&data[..]);
+                let mut result = String::new();
+                decoder.read_to_string(&mut result).unwrap();
+                result
+            }
+            CompressionAlgorithm::ZLib => {
+                let mut decoder = ZlibDecoder::new(&data[..]);
+                let mut result = String::new();
+                decoder.read_to_string(&mut result).unwrap();
+                result
+            }
+            CompressionAlgorithm::Unknown => panic!("Unkown compression algorithm"),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -210,5 +246,11 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
 
     pub fn book_number(&self) -> u8 {
         self.book_number
+    }
+
+    //TODO: Remove pub
+    pub fn first_block(&self) -> Result<BARBlock<T>, Box<dyn Error>> {
+        //TODO: Use current_block
+        BARBlock::build(self.reader.clone(), self.file_offset, self.file_version)
     }
 }
