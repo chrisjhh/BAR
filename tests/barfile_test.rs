@@ -29,4 +29,17 @@ fn test_barfile() {
     assert_eq!(book.as_ref().unwrap().number_of_chapters(), 6);
     let book = &bar.next();
     assert!(book.is_none());
+    assert_eq!(
+        bar.book(1).expect("Failed to get book 1").book_abbrev(),
+        "Ge"
+    );
+    assert_eq!(
+        bar.book(27).expect("Failed to get book 27").book_abbrev(),
+        "Da"
+    );
+    assert_eq!(
+        bar.book(49).expect("Failed to get book 49").book_abbrev(),
+        "Eph"
+    );
+    assert!(bar.book(2).is_err());
 }
