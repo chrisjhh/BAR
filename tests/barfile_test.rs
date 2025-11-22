@@ -41,5 +41,5 @@ fn test_barfile() {
         bar.book(49).expect("Failed to get book 49").book_abbrev(),
         "Eph"
     );
-    assert!(bar.book(2).is_err());
+    assert!(bar.book(2).is_none());
 }

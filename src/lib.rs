@@ -216,10 +216,7 @@ impl<T: io::Read + io::Seek> Iterator for BARFile<T> {
             BARBookIndexEntry::Live {
                 book_number,
                 file_offset: _,
-            } => match self.book(*book_number) {
-                Ok(book) => Some(book),
-                _ => None,
-            },
+            } => self.book(*book_number),
         }
     }
 }
@@ -295,8 +292,8 @@ impl<T> BARFile<T> {
     }
 }
 
-impl<'a, T: io::Read + io::Seek> BARFile<T> {
-    pub fn book(&'a mut self, book_number: u8) -> Result<BARBook<T>, Box<dyn Error>> {
+impl<T: io::Read + io::Seek> BARFile<T> {
+    pub fn book(&mut self, book_number: u8) -> Option<BARBook<T>> {
         let mut file_offset: u32 = 0;
         for entry in &self.book_index {
             match entry {
@@ -313,14 +310,17 @@ impl<'a, T: io::Read + io::Seek> BARFile<T> {
             }
         }
         if file_offset == 0 {
-            return Err(format!("Book with index {} not present in archive", book_number).into());
+            return None;
         }
-        BARBook::build(
+        match BARBook::build(
             self.file.clone(),
             book_number,
             file_offset,
             self.header.major_version,
-        )
+        ) {
+            Ok(bar) => Some(bar),
+            Err(_) => None,
+        }
     }
 }
 
