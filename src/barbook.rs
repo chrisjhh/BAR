@@ -90,6 +90,7 @@ pub struct BARBook<T: io::Read + io::Seek> {
     file_offset: u32,
     header: BARBookHeader,
     chapter_index: Vec<BARChapterIndexEntry>,
+    iterator_index: Option<usize>,
 }
 
 #[allow(dead_code)]
@@ -188,6 +189,7 @@ impl<T: io::Read + io::Seek> BARBook<T> {
             header,
             chapter_index,
             file_version,
+            iterator_index: None,
         })
     }
 
@@ -243,5 +245,24 @@ impl<T: io::Read + io::Seek> BARBook<T> {
                 }
             }
         }
+    }
+}
+
+impl<T: io::Read + io::Seek> Iterator for BARBook<T> {
+    type Item = Option<BARChapter<T>>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current_index: Option<usize> = match self.iterator_index {
+            None if self.chapter_index.is_empty() => None,
+            None => Some(1),
+            Some(x) if x + 1 > self.chapter_index.len() => None,
+            Some(x) => Some(x + 1),
+        };
+        self.iterator_index = current_index;
+        let i = match current_index {
+            None => return None,
+            Some(index) => index,
+        };
+        Some(self.chapter(i as u8))
     }
 }

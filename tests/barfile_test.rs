@@ -72,3 +72,33 @@ fn test_barfile() {
     );
     assert!(bar.book(2).is_none());
 }
+
+#[test]
+fn test_iterators() {
+    let mut output: Vec<String> = Vec::new();
+    let bar =
+        BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
+    for book in bar {
+        output.push(book.book_name().to_string());
+        output.push(format!("Chapters: {}", book.number_of_chapters()));
+        for chapter in book {
+            if chapter.is_some() {
+                output.push(format!("- Chapter {}", chapter.unwrap().chapter_number()));
+            }
+        }
+    }
+    assert_eq!(
+        output,
+        vec!(
+            "Daniel",
+            "Chapters: 12",
+            "- Chapter 1",
+            "Genesis",
+            "Chapters: 50",
+            "- Chapter 1",
+            "Ephesians",
+            "Chapters: 6",
+            "- Chapter 4"
+        )
+    );
+}
