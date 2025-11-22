@@ -283,6 +283,25 @@ impl<T> BARFile<T> {
         &self.header.version_abbrev
     }
 
+    pub fn number_of_books(&self) -> i32 {
+        let mut count = 0;
+        for entry in &self.book_index {
+            match entry {
+                BARBookIndexEntry::Live { .. } => count += 1,
+                BARBookIndexEntry::Empty => break,
+            }
+        }
+        count
+    }
+
+    pub fn book_capacity(&self) -> i32 {
+        assert_eq!(
+            usize::from(self.header.number_of_books),
+            self.book_index.len()
+        );
+        self.header.number_of_books as i32
+    }
+
     fn new_book_index(number_of_books: u8) -> Vec<BARBookIndexEntry> {
         let mut book_index: Vec<BARBookIndexEntry> = Vec::new();
         book_index.resize_with(usize::from(number_of_books), || {

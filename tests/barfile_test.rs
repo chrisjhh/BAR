@@ -9,6 +9,8 @@ fn test_barfile() {
     assert_eq!(bar.archive_version().1, 1);
     assert_eq!(bar.archive_version().to_string(), "2.1".to_string());
     assert_eq!(bar.bible_version(), "KJV");
+    assert_eq!(bar.number_of_books(), 3);
+    assert_eq!(bar.book_capacity(), 66);
     let book = &bar.next();
     assert!(book.is_some());
     assert_eq!(book.as_ref().unwrap().book_number(), 27u8);
