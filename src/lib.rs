@@ -477,6 +477,8 @@ mod tests {
         assert_eq!(bar.archive_version().to_string().as_str(), "2.2");
         assert_eq!(bar.bible_version().as_str(), "NIV");
         assert_eq!(bar.book_index.len(), 66);
+        assert_eq!(bar.number_of_books(), 0);
+        assert_eq!(bar.book_capacity(), 66);
         for index in bar.book_index {
             assert!(matches!(index, BARBookIndexEntry::Empty));
         }
@@ -497,6 +499,8 @@ mod tests {
         assert_eq!(bar.archive_version().to_string().as_str(), "2.2");
         assert_eq!(bar.bible_version().as_str(), "NIV");
         assert_eq!(bar.book_index.len(), 66);
+        assert_eq!(bar.number_of_books(), 0);
+        assert_eq!(bar.book_capacity(), 66);
         for index in bar.book_index {
             assert!(matches!(index, BARBookIndexEntry::Empty));
         }
