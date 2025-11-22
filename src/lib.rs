@@ -188,7 +188,7 @@ impl BARBookIndexEntry {
     }
 }
 
-pub struct BARVersion(u8, u8);
+pub struct BARVersion(pub u8, pub u8);
 impl std::fmt::Display for BARVersion {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}.{}", self.0, self.1)
