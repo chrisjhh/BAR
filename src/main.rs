@@ -2,6 +2,8 @@ use bar::{BARBookIndexEntry, BARFile, BinaryStruct};
 use hex;
 use std::{env, io};
 
+use lzokay_native;
+
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
@@ -43,10 +45,32 @@ fn main() -> io::Result<()> {
                     assert_eq!(i, chapt.chapter_number());
                     assert_eq!(chapt.book_number(), book.book_number());
                     println!("  chapter {i} present");
-                    println!("{}", chapt.first_block().unwrap().decompress())
+                    let _data = chapt.first_block().unwrap().decompress();
+                    //println!("{}", chapt.first_block().unwrap().decompress())
                 }
             }
         }
     }
+
+    let mut bar =
+        BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\niv.bar").expect("Failed to open");
+    let ge = bar.book(1).unwrap();
+    let chapt1 = ge.chapter(1).unwrap();
+    let block = chapt1.first_block().unwrap();
+    let text = block.decompress();
+    let _lzo_data = lzokay_native::compress(text.as_bytes()).unwrap();
+    //let hex_output = hex::encode_upper(&lzo_data);
+    //println!("LZO compressed {hex_output}");
+
+    let mut bar = BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\niv_v1.bar")
+        .expect("Failed to open");
+    let ge = bar.book(1).unwrap();
+    let chapt1 = ge.chapter(1).unwrap();
+    let block = chapt1.first_block().unwrap();
+    //let data = block.data().unwrap();
+    //let hex_output = hex::encode_upper(&data);
+    //println!("Block data {hex_output}");
+    println!("{}", block.decompress());
+
     Ok(())
 }

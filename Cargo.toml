@@ -6,4 +6,4 @@ edition = "2024"
 [dependencies]
 flate2 = "1.1.5"
 hex = "0.4.3"
-lzokay = "2.0.1"
+lzokay-native = "0.1.0"

@@ -99,7 +99,7 @@ impl BinaryStruct for BlockHeaderV1 {
         let start_verse = buf[1];
         let end_verse = buf[2];
         let mut bytes: [u8; 4] = [0; 4];
-        bytes.copy_from_slice(&buf[4..8]);
+        bytes.copy_from_slice(&buf[3..7]);
         let block_size = u32::from_le_bytes(bytes);
         Ok(Box::new(BlockHeaderV1 {
             chapter_number,
@@ -184,15 +184,47 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
 
     pub fn decompress(&self) -> String {
         use flate2::read::{GzDecoder, ZlibDecoder};
-        use lzokay;
+        use lzokay_native;
+        //use minilzo_rs;
         let data = self.data().unwrap();
         match self.compression_algorith() {
             CompressionAlgorithm::None => String::from_utf8(data).unwrap(),
             CompressionAlgorithm::Lzo => {
-                let mut buf: Vec<u8> = Vec::new();
-                buf.resize(5 * 1024, b'\0');
-                let size = lzokay::decompress::decompress(&data, &mut buf).unwrap();
-                String::from_utf8(buf[0..size].into()).unwrap()
+                //let mut buf: Vec<u8> = Vec::new();
+                //buf.resize(5 * 1024, b'\0');
+                //let size = lzokay::decompress::decompress(&data[..], &mut buf).unwrap();
+                //String::from_utf8(buf[0..size].into()).unwrap()
+                //
+                // First byte is 241 and then decompressed length in bigendian 4-byte format
+                let mut bytes: [u8; 4] = [0; 4];
+                //let size = data.len();
+                bytes.copy_from_slice(&data[1..5]);
+                let decompressed_size = u32::from_be_bytes(bytes);
+                //dbg!(decompressed_size);
+                //dbg!(&data[0..5]);
+
+                let decompressed =
+                    lzokay_native::decompress_all(&data[5..], Some(decompressed_size as usize))
+                        .unwrap();
+                if decompressed_size as usize != decompressed.len() {
+                    dbg!(decompressed_size);
+                    dbg!(decompressed.len());
+                }
+                String::from_utf8(decompressed).unwrap()
+                //
+                //dbg!(&data);
+
+                //let mut bytes: [u8; 4] = [0; 4];
+                //let size = data.len();
+                //bytes.copy_from_slice(&data[size - 4..size]);
+                //let decompressed_size = u32::from_le_bytes(bytes);
+                //dbg!(decompressed_size);
+
+                //let lzo = minilzo_rs::LZO::init().unwrap();
+                //let decompressed = lzo
+                //    .decompress(&data[..], decompressed_size as usize)
+                //    .unwrap();
+                //String::from_utf8(decompressed).unwrap()
             }
             CompressionAlgorithm::GZip => {
                 let mut decoder = GzDecoder::new(&data[..]);
