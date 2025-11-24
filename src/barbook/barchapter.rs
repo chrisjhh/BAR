@@ -4,6 +4,7 @@ use std::error::Error;
 use std::io::{self, Read};
 use std::rc::Rc;
 
+#[derive(Debug, Clone)]
 pub enum CompressionAlgorithm {
     None,
     Lzo,
@@ -30,6 +31,17 @@ impl Into<u8> for &CompressionAlgorithm {
             CompressionAlgorithm::ZLib => 2,
             CompressionAlgorithm::GZip => 3,
             CompressionAlgorithm::Unknown => 255,
+        }
+    }
+}
+impl ToString for CompressionAlgorithm {
+    fn to_string(&self) -> String {
+        match self {
+            CompressionAlgorithm::None => "None".to_string(),
+            CompressionAlgorithm::Lzo => "LZO".to_string(),
+            CompressionAlgorithm::ZLib => "ZLIB".to_string(),
+            CompressionAlgorithm::GZip => "GZip".to_string(),
+            CompressionAlgorithm::Unknown => "Unknown".to_string(),
         }
     }
 }
@@ -184,47 +196,12 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
 
     pub fn decompress(&self) -> String {
         use flate2::read::{GzDecoder, ZlibDecoder};
-        use lzokay_native;
-        //use minilzo_rs;
         let data = self.data().unwrap();
         match self.compression_algorith() {
             CompressionAlgorithm::None => String::from_utf8(data).unwrap(),
             CompressionAlgorithm::Lzo => {
-                //let mut buf: Vec<u8> = Vec::new();
-                //buf.resize(5 * 1024, b'\0');
-                //let size = lzokay::decompress::decompress(&data[..], &mut buf).unwrap();
-                //String::from_utf8(buf[0..size].into()).unwrap()
-                //
-                // First byte is 241 and then decompressed length in bigendian 4-byte format
-                let mut bytes: [u8; 4] = [0; 4];
-                //let size = data.len();
-                bytes.copy_from_slice(&data[1..5]);
-                let decompressed_size = u32::from_be_bytes(bytes);
-                //dbg!(decompressed_size);
-                //dbg!(&data[0..5]);
-
-                let decompressed =
-                    lzokay_native::decompress_all(&data[5..], Some(decompressed_size as usize))
-                        .unwrap();
-                if decompressed_size as usize != decompressed.len() {
-                    dbg!(decompressed_size);
-                    dbg!(decompressed.len());
-                }
+                let decompressed = compress::lzo::decompress(&data).unwrap();
                 String::from_utf8(decompressed).unwrap()
-                //
-                //dbg!(&data);
-
-                //let mut bytes: [u8; 4] = [0; 4];
-                //let size = data.len();
-                //bytes.copy_from_slice(&data[size - 4..size]);
-                //let decompressed_size = u32::from_le_bytes(bytes);
-                //dbg!(decompressed_size);
-
-                //let lzo = minilzo_rs::LZO::init().unwrap();
-                //let decompressed = lzo
-                //    .decompress(&data[..], decompressed_size as usize)
-                //    .unwrap();
-                //String::from_utf8(decompressed).unwrap()
             }
             CompressionAlgorithm::GZip => {
                 let mut decoder = GzDecoder::new(&data[..]);
@@ -284,5 +261,74 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
     pub fn first_block(&self) -> Result<BARBlock<T>, Box<dyn Error>> {
         //TODO: Use current_block
         BARBlock::build(self.reader.clone(), self.file_offset, self.file_version)
+    }
+}
+
+#[allow(dead_code)]
+mod compress {
+    use super::CompressionAlgorithm;
+    use std::fmt;
+    type Result<T> = std::result::Result<T, CompressionError>;
+
+    #[derive(Debug, Clone)]
+    pub struct CompressionError(CompressionAlgorithm, String);
+    impl fmt::Display for CompressionError {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            write!(f, "{} compression error: {}", self.0.to_string(), self.1)
+        }
+    }
+
+    pub mod lzo {
+        use crate::barbook::barchapter::CompressionAlgorithm;
+
+        use super::Result;
+        use lzokay_native;
+        const ALGORITHM: CompressionAlgorithm = CompressionAlgorithm::Lzo;
+        const MAX_SIZE: u32 = 100 * 1024;
+        use super::CompressionError;
+
+        pub fn decompress(data: &[u8]) -> Result<Vec<u8>> {
+            // First byte is 241 and then decompressed length in bigendian 4-byte format
+            let first_byte = data[0];
+            if first_byte != 241 {
+                return Err(CompressionError(
+                    ALGORITHM,
+                    format!(
+                        "Unexpected first byte [{:X}] expected {:X}",
+                        first_byte, 241
+                    ),
+                ));
+            }
+            let mut bytes: [u8; 4] = [0; 4];
+            bytes.copy_from_slice(&data[1..5]);
+            let decompressed_size = u32::from_be_bytes(bytes);
+            if decompressed_size == 0 || decompressed_size > MAX_SIZE {
+                return Err(CompressionError(
+                    ALGORITHM,
+                    format!("Unexpected decompression size {}", decompressed_size),
+                ));
+            }
+
+            let result =
+                lzokay_native::decompress_all(&data[5..], Some(decompressed_size as usize));
+            if result.is_err() {
+                return Err(CompressionError(
+                    ALGORITHM,
+                    format!("{}", result.unwrap_err()),
+                ));
+            }
+            let decompressed = result.unwrap();
+            if decompressed_size as usize != decompressed.len() {
+                return Err(CompressionError(
+                    ALGORITHM,
+                    format!(
+                        "Decompressed data was not of expected size: {} expected: {}",
+                        decompressed.len(),
+                        decompressed_size
+                    ),
+                ));
+            }
+            Ok(decompressed)
+        }
     }
 }
