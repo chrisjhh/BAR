@@ -1,4 +1,5 @@
-use bar::{BARBookIndexEntry, BARFile, BinaryStruct};
+use bar::binarystruct::BinaryStruct;
+use bar::{BARBookIndexEntry, BARFile};
 use hex;
 use std::{env, io};
 

@@ -112,14 +112,14 @@ impl BinaryStruct for BARBookHeader {
         2
     }
 
-    fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn std::error::Error>> {
+    fn from_bytes(buf: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
         super::check_size!(buf);
         let book_number = buf[0];
         let number_of_chapters = buf[1];
-        Ok(Box::new(BARBookHeader {
+        Ok(BARBookHeader {
             book_number,
             number_of_chapters,
-        }))
+        })
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -135,16 +135,16 @@ impl BinaryStruct for BARChapterIndexEntry {
         4
     }
 
-    fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn std::error::Error>> {
+    fn from_bytes(buf: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
         super::check_size!(buf);
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&buf[0..4]);
         let additional_offset = u32::from_le_bytes(bytes);
         match additional_offset {
-            0 => Ok(Box::new(BARChapterIndexEntry::Empty)),
-            offset => Ok(Box::new(BARChapterIndexEntry::Live {
+            0 => Ok(BARChapterIndexEntry::Empty),
+            offset => Ok(BARChapterIndexEntry::Live {
                 additional_offset: offset,
-            })),
+            }),
         }
     }
 
@@ -173,7 +173,7 @@ impl<T: io::Read + io::Seek> BARBook<T> {
     ) -> Result<Self, Box<dyn Error>> {
         let reader = &mut *shared_reader.borrow_mut();
         reader.seek(io::SeekFrom::Start(u64::from(file_offset)))?;
-        let header = *BARBookHeader::read_from(reader)?;
+        let header = BARBookHeader::read_from(reader)?;
         if header.book_number != book_number {
             return Err(format!(
                 "Book index number mismatch. Expected: {}. Got: {}",

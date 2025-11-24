@@ -10,55 +10,8 @@ use barbook::BARBook;
 
 const CURRENT_VERSION: (u8, u8) = (2, 2);
 
-pub trait BinaryStruct {
-    fn byte_size() -> usize;
-    fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>>;
-    fn to_bytes(&self) -> Vec<u8>;
-
-    fn read_from(reader: &mut impl io::Read) -> Result<Box<Self>, Box<dyn Error>> {
-        let mut buf: Vec<u8> = Vec::new();
-        buf.resize(Self::byte_size(), b'\0');
-        match reader.read_exact(&mut buf[..]) {
-            Err(e) => return Err(format!("{e}").into()),
-            _ => {}
-        }
-        Ok(Self::from_bytes(&buf)?)
-    }
-
-    fn write_to(&self, writer: &mut impl io::Write) -> Result<(), Box<dyn Error>> {
-        let bytes = self.to_bytes();
-        Ok(writer.write_all(&bytes)?)
-    }
-
-    fn read_array(size: usize, reader: &mut impl io::Read) -> Result<Vec<Self>, Box<dyn Error>>
-    where
-        Self: Sized,
-    {
-        let mut buf: Vec<u8> = Vec::new();
-        let mut results: Vec<Self> = Vec::new();
-        buf.resize(size * Self::byte_size(), b'\0');
-        reader.read_exact(&mut buf[..])?;
-        for i in 0..size {
-            let start: usize = usize::from(i) * Self::byte_size();
-            let end: usize = start + Self::byte_size();
-            let entry = Self::from_bytes(&buf[start..end])?;
-            results.push(*entry);
-        }
-        Ok(results)
-    }
-
-    fn write_array(entries: &Vec<Self>, writer: &mut impl io::Write) -> Result<(), Box<dyn Error>>
-    where
-        Self: Sized,
-    {
-        let mut buf: Vec<u8> = Vec::new();
-        for entry in entries {
-            buf.append(&mut entry.to_bytes());
-        }
-        writer.write_all(&buf)?;
-        Ok(())
-    }
-}
+pub mod binarystruct;
+use binarystruct::BinaryStruct;
 
 #[macro_export]
 macro_rules! check_size {
@@ -87,7 +40,7 @@ pub enum BARBookIndexEntry {
 #[allow(dead_code)]
 pub struct BARFile<T> {
     file: Rc<RefCell<T>>,
-    pub header: Box<BARFileHeader>,
+    pub header: BARFileHeader,
     pub book_index: Vec<BARBookIndexEntry>,
     iterator_index: Option<usize>,
 }
@@ -97,7 +50,7 @@ impl BinaryStruct for BARFileHeader {
         16
     }
 
-    fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>> {
+    fn from_bytes(buf: &[u8]) -> Result<Self, Box<dyn Error>> {
         check_size!(buf);
         let intro = str::from_utf8(&buf[0..3])?;
         if intro != "BAR" {
@@ -109,12 +62,12 @@ impl BinaryStruct for BARFileHeader {
         let version_abbrev = str::from_utf8(&buf[6..16])?
             .trim_end_matches("\0")
             .to_string();
-        Ok(Box::new(BARFileHeader {
+        Ok(BARFileHeader {
             major_version,
             minor_version,
             number_of_books,
             version_abbrev,
-        }))
+        })
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -147,19 +100,19 @@ impl BinaryStruct for BARBookIndexEntry {
         5
     }
 
-    fn from_bytes(buf: &[u8]) -> Result<Box<Self>, Box<dyn Error>> {
+    fn from_bytes(buf: &[u8]) -> Result<Self, Box<dyn Error>> {
         check_size!(buf);
         let book_number = buf[0];
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&buf[1..5]);
         let file_offset = u32::from_le_bytes(bytes);
         if file_offset == 0 || book_number == 0 {
-            return Ok(Box::new(Self::Empty));
+            return Ok(Self::Empty);
         }
-        Ok(Box::new(Self::Live {
+        Ok(Self::Live {
             book_number,
             file_offset,
-        }))
+        })
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -264,7 +217,6 @@ impl BARFile<File> {
         let book_index = Self::new_book_index(header.number_of_books);
         BARBookIndexEntry::write_array(&book_index, &mut writer)?;
         let file = writer.into_inner().unwrap();
-        let header = Box::new(header);
         Ok(Self {
             file: Rc::new(RefCell::new(file)),
             header,
@@ -390,7 +342,6 @@ mod tests {
             for entry in &book_index {
                 entry.write_to(&mut file).unwrap();
             }
-            let header = Box::new(header);
             Self {
                 file: Rc::new(RefCell::new(file)),
                 header,
