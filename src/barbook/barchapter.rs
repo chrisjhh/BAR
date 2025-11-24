@@ -196,13 +196,17 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
 
     pub fn decompress(&self) -> Result<String, Box<dyn std::error::Error>> {
         let data = self.data()?;
-        Ok(match self.compression_algorith() {
-            CompressionAlgorithm::None => String::from_utf8(data)?,
-            CompressionAlgorithm::Lzo => compress::lzo::decompress(&data)?,
-            CompressionAlgorithm::GZip => compress::gzip::decompress(&data)?,
-            CompressionAlgorithm::ZLib => compress::zlib::decompress(&data)?,
-            CompressionAlgorithm::Unknown => panic!("Unkown compression algorithm"),
-        })
+        match self.compression_algorith() {
+            CompressionAlgorithm::None => Ok(String::from_utf8(data)?),
+            CompressionAlgorithm::Lzo => Ok(compress::lzo::decompress(&data)?),
+            CompressionAlgorithm::GZip => Ok(compress::gzip::decompress(&data)?),
+            CompressionAlgorithm::ZLib => Ok(compress::zlib::decompress(&data)?),
+            CompressionAlgorithm::Unknown => Err(compress::CompressionError(
+                CompressionAlgorithm::Unknown,
+                "Unsupported compression algorithm".to_string(),
+            )
+            .into()),
+        }
     }
 }
 
@@ -257,7 +261,7 @@ mod compress {
     type Result<T> = std::result::Result<T, CompressionError>;
 
     #[derive(Debug, Clone)]
-    pub struct CompressionError(CompressionAlgorithm, String);
+    pub struct CompressionError(pub CompressionAlgorithm, pub String);
     impl fmt::Display for CompressionError {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             write!(f, "{} compression error: {}", self.0.to_string(), self.1)
