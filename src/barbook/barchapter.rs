@@ -275,17 +275,18 @@ mod compress {
         use lzokay_native;
         const ALGORITHM: CompressionAlgorithm = CompressionAlgorithm::Lzo;
         const MAX_SIZE: u32 = 100 * 1024;
+        const FIRST_BYTE: u8 = 241;
         use super::CompressionError;
 
         pub fn decompress(data: &[u8]) -> Result<String> {
             // First byte is 241 and then decompressed length in bigendian 4-byte format
             let first_byte = data[0];
-            if first_byte != 241 {
+            if first_byte != FIRST_BYTE {
                 return Err(CompressionError(
                     ALGORITHM,
                     format!(
                         "Unexpected first byte [{:X}] expected {:X}",
-                        first_byte, 241
+                        first_byte, FIRST_BYTE
                     ),
                 ));
             }
@@ -327,6 +328,23 @@ mod compress {
                     ));
                 }
             }
+        }
+
+        pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
+            let uncompressed_size: u32 = data.len() as u32;
+            let result = lzokay_native::compress(data);
+            if result.is_err() {
+                return Err(CompressionError(
+                    ALGORITHM,
+                    format!("{}", result.unwrap_err()),
+                ));
+            }
+            let mut compressed = result.unwrap();
+            let mut lzo_data: Vec<u8> = Vec::new();
+            lzo_data.push(FIRST_BYTE);
+            lzo_data.append(&mut uncompressed_size.to_be_bytes().to_vec());
+            lzo_data.append(&mut compressed);
+            Ok(lzo_data)
         }
     }
 
@@ -372,5 +390,38 @@ mod compress {
             }
             Ok(decompressed)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const DATA : &str = "In the beginning God created the heaven and the earth.
+And the earth was without form, and void; and darkness was upon the face of the deep. And the Spirit of God moved upon the face of the waters.
+And God said, Let there be light: and there was light.
+And God saw the light, that it was good: and God divided the light from the darkness.
+And God called the light Day, and the darkness he called Night. And the evening and the morning were the first day";
+
+    const LZO_DATA: &str = "F1000001C52D496E2074686520626567696E6E696E6720476F6420637265617\
+    465648503680A0276650209616EBB016561720B012E0A412A38000F2077617320776974686F757420666F726\
+    D2C980502766F69643B8501640409016B6E65735004430575706FAF0E66616302016F668C0103646565702E2\
+    0F40A035370697269746C0376116D6F01206434D900775A147273B8116A057361081C022C204C65747503727\
+    81A04206C696768743AFC174C026C1090022AD90077980999022C49016100105C0F6605676F0C07B407630564\
+    69760018C0239005022066726F6DA418CC1C2854010163616C6C2BAF00446179A4232ABC00402CE5054E94122\
+    71504655C2E6432E5066D04569D017774188521690D3E74410979110000";
+
+    #[test]
+    fn test_lzo_compression() {
+        let compressed = compress::lzo::compress(&DATA.to_string().into_bytes()).unwrap();
+        let hex_string = hex::encode_upper(compressed);
+        assert_eq!(hex_string.as_str(), LZO_DATA);
+    }
+
+    #[test]
+    fn test_lzo_decompression() {
+        let data = hex::decode(LZO_DATA).unwrap();
+        let decompressed = compress::lzo::decompress(&data).unwrap();
+        assert_eq!(decompressed, DATA);
     }
 }
