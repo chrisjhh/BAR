@@ -1,7 +1,7 @@
 use crate::BinaryStruct;
 use std::cell::RefCell;
 use std::error::Error;
-use std::io::{self, Read};
+use std::io;
 use std::rc::Rc;
 
 #[derive(Debug, Clone)]
@@ -194,29 +194,15 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
         }
     }
 
-    pub fn decompress(&self) -> String {
-        use flate2::read::{GzDecoder, ZlibDecoder};
-        let data = self.data().unwrap();
-        match self.compression_algorith() {
-            CompressionAlgorithm::None => String::from_utf8(data).unwrap(),
-            CompressionAlgorithm::Lzo => {
-                let decompressed = compress::lzo::decompress(&data).unwrap();
-                String::from_utf8(decompressed).unwrap()
-            }
-            CompressionAlgorithm::GZip => {
-                let mut decoder = GzDecoder::new(&data[..]);
-                let mut result = String::new();
-                decoder.read_to_string(&mut result).unwrap();
-                result
-            }
-            CompressionAlgorithm::ZLib => {
-                let mut decoder = ZlibDecoder::new(&data[..]);
-                let mut result = String::new();
-                decoder.read_to_string(&mut result).unwrap();
-                result
-            }
+    pub fn decompress(&self) -> Result<String, Box<dyn std::error::Error>> {
+        let data = self.data()?;
+        Ok(match self.compression_algorith() {
+            CompressionAlgorithm::None => String::from_utf8(data)?,
+            CompressionAlgorithm::Lzo => compress::lzo::decompress(&data)?,
+            CompressionAlgorithm::GZip => compress::gzip::decompress(&data)?,
+            CompressionAlgorithm::ZLib => compress::zlib::decompress(&data)?,
             CompressionAlgorithm::Unknown => panic!("Unkown compression algorithm"),
-        }
+        })
     }
 }
 
@@ -277,17 +263,17 @@ mod compress {
             write!(f, "{} compression error: {}", self.0.to_string(), self.1)
         }
     }
+    impl std::error::Error for CompressionError {}
 
     pub mod lzo {
-        use crate::barbook::barchapter::CompressionAlgorithm;
-
         use super::Result;
+        use crate::barbook::barchapter::CompressionAlgorithm;
         use lzokay_native;
         const ALGORITHM: CompressionAlgorithm = CompressionAlgorithm::Lzo;
         const MAX_SIZE: u32 = 100 * 1024;
         use super::CompressionError;
 
-        pub fn decompress(data: &[u8]) -> Result<Vec<u8>> {
+        pub fn decompress(data: &[u8]) -> Result<String> {
             // First byte is 241 and then decompressed length in bigendian 4-byte format
             let first_byte = data[0];
             if first_byte != 241 {
@@ -326,6 +312,58 @@ mod compress {
                         decompressed.len(),
                         decompressed_size
                     ),
+                ));
+            }
+            match String::from_utf8(decompressed) {
+                Ok(string) => Ok(string),
+                Err(err) => {
+                    return Err(CompressionError(
+                        ALGORITHM,
+                        format!("Error parsing bytes into string {}", err),
+                    ));
+                }
+            }
+        }
+    }
+
+    pub mod zlib {
+        use super::Result;
+        use crate::barbook::barchapter::CompressionAlgorithm;
+        use flate2::read::ZlibDecoder;
+        const ALGORITHM: CompressionAlgorithm = CompressionAlgorithm::ZLib;
+        use super::CompressionError;
+        use std::io::Read;
+
+        pub fn decompress(data: &[u8]) -> Result<String> {
+            let mut decoder = ZlibDecoder::new(&data[..]);
+            let mut decompressed = String::new();
+            let result = decoder.read_to_string(&mut decompressed);
+            if result.is_err() {
+                return Err(CompressionError(
+                    ALGORITHM,
+                    format!("{}", result.unwrap_err()),
+                ));
+            }
+            Ok(decompressed)
+        }
+    }
+
+    pub mod gzip {
+        use super::Result;
+        use crate::barbook::barchapter::CompressionAlgorithm;
+        use flate2::read::GzDecoder;
+        const ALGORITHM: CompressionAlgorithm = CompressionAlgorithm::GZip;
+        use super::CompressionError;
+        use std::io::Read;
+
+        pub fn decompress(data: &[u8]) -> Result<String> {
+            let mut decoder = GzDecoder::new(&data[..]);
+            let mut decompressed = String::new();
+            let result = decoder.read_to_string(&mut decompressed);
+            if result.is_err() {
+                return Err(CompressionError(
+                    ALGORITHM,
+                    format!("{}", result.unwrap_err()),
                 ));
             }
             Ok(decompressed)

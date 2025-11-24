@@ -57,7 +57,7 @@ fn main() -> io::Result<()> {
     let ge = bar.book(1).unwrap();
     let chapt1 = ge.chapter(1).unwrap();
     let block = chapt1.first_block().unwrap();
-    let text = block.decompress();
+    let text = block.decompress().unwrap();
     let _lzo_data = lzokay_native::compress(text.as_bytes()).unwrap();
     //let hex_output = hex::encode_upper(&lzo_data);
     //println!("LZO compressed {hex_output}");
@@ -70,7 +70,7 @@ fn main() -> io::Result<()> {
     //let data = block.data().unwrap();
     //let hex_output = hex::encode_upper(&data);
     //println!("Block data {hex_output}");
-    println!("{}", block.decompress());
+    println!("{}", block.decompress().unwrap());
 
     Ok(())
 }
