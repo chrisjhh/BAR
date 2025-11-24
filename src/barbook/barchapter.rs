@@ -396,9 +396,11 @@ mod compress {
         use super::Result;
         use crate::barbook::barchapter::CompressionAlgorithm;
         use flate2::read::GzDecoder;
+        use flate2::write::GzEncoder;
         const ALGORITHM: CompressionAlgorithm = CompressionAlgorithm::GZip;
         use super::CompressionError;
-        use std::io::Read;
+        use flate2::Compression;
+        use std::io::{Read, Write};
 
         pub fn decompress(data: &[u8]) -> Result<String> {
             let mut decoder = GzDecoder::new(&data[..]);
@@ -411,6 +413,26 @@ mod compress {
                 ));
             }
             Ok(decompressed)
+        }
+
+        pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
+            let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
+            let result = encoder.write_all(&data);
+            if result.is_err() {
+                return Err(CompressionError(
+                    ALGORITHM,
+                    format!("Compression error: {}", result.unwrap_err()),
+                ));
+            }
+            match encoder.finish() {
+                Ok(bytes) => Ok(bytes),
+                Err(err) => {
+                    return Err(CompressionError(
+                        ALGORITHM,
+                        format!("Compression error: {}", err),
+                    ));
+                }
+            }
         }
     }
 }
@@ -440,6 +462,13 @@ And God called the light Day, and the darkness he called Night. And the evening 
     F224791D0B62B30F0C6610FC6C130A82CCDC1EEF197B5C779FE837DC15B7706796652EA1DF9E1AACE14A8E45E7\
     FE4D85844BDCFD58527C19AAC10DD7E0067919D53";
 
+    const GZIP_DATA: &str = "1F8B08000000000000FF6D51414EC4300CBCF30A3FA0DA07C009090921212EBC\
+    C0346E6BD1C695E36DB4BF2771DAB248DCEC783C9E99BC45B089E08B468E91E308AF12A05742A3E0938970A30\
+    8185B4BA8365D1E9EEF5BC89820B34D7235184497CEE19B7078F22AA07E474AC981D755DACD017B0219BC0E44\
+    EB050ED6CF9595ADCEAA9A45B6A2E5DFB55C646A6A722A3421870EDEC9EA54AB2D98799CECF1D0AFE41AFCF17\
+    E2D3B9D3F77A5448372BF224791D0B62B30F0C6610FC6C130A82CCDC1EEF197B5C779FE837DC15B7706796652\
+    EA1DF9E1AACE14A8E45E7FE4D85844BDCFD58527C19AAC10DD7E0057BE1A7DC5010000";
+
     #[test]
     fn test_lzo_compression() {
         let compressed = compress::lzo::compress(&DATA.to_string().into_bytes()).unwrap();
@@ -465,6 +494,20 @@ And God called the light Day, and the darkness he called Night. And the evening 
     fn test_zlib_decompression() {
         let data = hex::decode(ZLIB_DATA).unwrap();
         let decompressed = compress::zlib::decompress(&data).unwrap();
+        assert_eq!(decompressed, DATA);
+    }
+
+    #[test]
+    fn test_gzip_compression() {
+        let compressed = compress::gzip::compress(&DATA.to_string().into_bytes()).unwrap();
+        let hex_string = hex::encode_upper(compressed);
+        assert_eq!(hex_string.as_str(), GZIP_DATA);
+    }
+
+    #[test]
+    fn test_zip_decompression() {
+        let data = hex::decode(GZIP_DATA).unwrap();
+        let decompressed = compress::gzip::decompress(&data).unwrap();
         assert_eq!(decompressed, DATA);
     }
 }
