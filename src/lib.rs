@@ -17,12 +17,13 @@ use binarystruct::BinaryStruct;
 macro_rules! check_size {
     ($buf:ident) => {
         if $buf.len() != Self::byte_size() {
-            return Err(format!("Buffer should be {} bytes long.", Self::byte_size()).into());
+            panic!("Buffer should be {} bytes long.", Self::byte_size());
         }
     };
 }
 
 pub struct BARFileHeader {
+    leader: [u8; 3],
     pub major_version: u8,
     pub minor_version: u8,
     pub number_of_books: u8,
@@ -50,24 +51,24 @@ impl BinaryStruct for BARFileHeader {
         16
     }
 
-    fn from_bytes(buf: &[u8]) -> Result<Self, Box<dyn Error>> {
+    fn from_bytes(buf: &[u8]) -> Self {
         check_size!(buf);
-        let intro = str::from_utf8(&buf[0..3])?;
-        if intro != "BAR" {
-            return Err("Not a BAR file header.".into());
-        }
+        let mut leader: [u8; 3] = [0; 3];
+        leader.copy_from_slice(&buf[0..3]);
         let major_version = buf[3];
         let minor_version = buf[4];
         let number_of_books = buf[5];
-        let version_abbrev = str::from_utf8(&buf[6..16])?
+        let version_abbrev = str::from_utf8(&buf[6..16])
+            .unwrap_or("")
             .trim_end_matches("\0")
             .to_string();
-        Ok(BARFileHeader {
+        BARFileHeader {
+            leader,
             major_version,
             minor_version,
             number_of_books,
             version_abbrev,
-        })
+        }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -86,7 +87,10 @@ impl BinaryStruct for BARFileHeader {
 
 impl BARFileHeader {
     fn default() -> Self {
+        let mut leader: [u8; 3] = [0; 3];
+        leader.copy_from_slice("BAR".as_bytes());
         BARFileHeader {
+            leader,
             major_version: CURRENT_VERSION.0,
             minor_version: CURRENT_VERSION.1,
             number_of_books: 66,
@@ -100,19 +104,19 @@ impl BinaryStruct for BARBookIndexEntry {
         5
     }
 
-    fn from_bytes(buf: &[u8]) -> Result<Self, Box<dyn Error>> {
+    fn from_bytes(buf: &[u8]) -> Self {
         check_size!(buf);
         let book_number = buf[0];
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&buf[1..5]);
         let file_offset = u32::from_le_bytes(bytes);
         if file_offset == 0 || book_number == 0 {
-            return Ok(Self::Empty);
+            return Self::Empty;
         }
-        Ok(Self::Live {
+        Self::Live {
             book_number,
             file_offset,
-        })
+        }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -180,6 +184,18 @@ impl BARFile<File> {
         let file = File::open(file_path)?;
         let mut reader = BufReader::new(file);
         let header = BARFileHeader::read_from(&mut reader)?;
+        if header.leader != [b'B', b'A', b'R'] {
+            return Err(format!(
+                "Invalid BAR file. Unexpected leader: {}",
+                String::from_utf8(header.leader.to_vec()).unwrap_or("???".to_string())
+            )
+            .into());
+        }
+        if header.version_abbrev.is_empty() {
+            return Err(
+                format!("Invalid BAR file. Version Abbrev not specified or corrupt.").into(),
+            );
+        }
         if header.major_version > CURRENT_VERSION.0 {
             return Err(format!(
                 "Unsupported future BARFile version: {}.{}",
@@ -353,7 +369,7 @@ mod tests {
 
     fn test_header(hex_header: &str, expected: (u8, u8, u8, &str)) {
         let bytes = hex::decode(hex_header).expect("Covert to bytes failed.");
-        let header = BARFileHeader::from_bytes(&bytes).expect("Construction from bytes failed");
+        let header = BARFileHeader::from_bytes(&bytes);
         assert_eq!(header.major_version, expected.0);
         assert_eq!(header.minor_version, expected.1);
         assert_eq!(header.number_of_books, expected.2);
@@ -397,7 +413,10 @@ mod tests {
     fn test_write_to() {
         let mut writer = io::Cursor::new(Vec::<u8>::new());
         let version_abbrev = String::from("ZLIB");
+        let mut leader: [u8; 3] = [0; 3];
+        leader.copy_from_slice("BAR".as_bytes());
         let header = BARFileHeader {
+            leader,
             major_version: 2,
             minor_version: 0,
             number_of_books: 66,

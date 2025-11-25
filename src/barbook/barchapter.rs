@@ -60,7 +60,7 @@ impl BinaryStruct for BlockHeaderV2 {
         8
     }
 
-    fn from_bytes(buf: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(buf: &[u8]) -> Self {
         crate::check_size!(buf);
         let chapter_number = buf[0];
         let start_verse = buf[1];
@@ -69,13 +69,13 @@ impl BinaryStruct for BlockHeaderV2 {
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&buf[4..8]);
         let block_size = u32::from_le_bytes(bytes);
-        Ok(BlockHeaderV2 {
+        BlockHeaderV2 {
             chapter_number,
             start_verse,
             end_verse,
             compression_algorithm,
             block_size,
-        })
+        }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
@@ -105,7 +105,7 @@ impl BinaryStruct for BlockHeaderV1 {
         7
     }
 
-    fn from_bytes(buf: &[u8]) -> Result<Self, Box<dyn std::error::Error>> {
+    fn from_bytes(buf: &[u8]) -> Self {
         crate::check_size!(buf);
         let chapter_number = buf[0];
         let start_verse = buf[1];
@@ -113,12 +113,12 @@ impl BinaryStruct for BlockHeaderV1 {
         let mut bytes: [u8; 4] = [0; 4];
         bytes.copy_from_slice(&buf[3..7]);
         let block_size = u32::from_le_bytes(bytes);
-        Ok(BlockHeaderV1 {
+        BlockHeaderV1 {
             chapter_number,
             start_verse,
             end_verse,
             block_size,
-        })
+        }
     }
 
     fn to_bytes(&self) -> Vec<u8> {
