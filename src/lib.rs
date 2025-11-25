@@ -5,6 +5,8 @@ use std::fs::File;
 use std::io::{self, BufReader, BufWriter};
 use std::rc::Rc;
 
+mod error;
+
 mod barbook;
 use barbook::BARBook;
 

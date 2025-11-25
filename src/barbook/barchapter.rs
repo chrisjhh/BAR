@@ -255,7 +255,7 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
 }
 
 #[allow(dead_code)]
-mod compress {
+pub mod compress {
     use super::CompressionAlgorithm;
     use std::fmt;
     type Result<T> = std::result::Result<T, CompressionError>;

@@ -80,7 +80,7 @@ const BOOK_ABBREVS: [&str; 66] = [
     "Phm", "Heb", "Jas", "1Pe", "2Pe", "1Jn", "2Jn", "3Jn", "Jude", "Rev",
 ];
 
-mod barchapter;
+pub mod barchapter;
 use barchapter::BARChapter;
 
 #[allow(dead_code)]
