@@ -146,7 +146,8 @@ pub struct BARBlock<T> {
     reader: Rc<RefCell<T>>,
     header: BlockHeader,
     file_offset: u32,
-    data: Option<Vec<u8>>,
+    start_verse: u8,
+    verses: Option<Vec<String>>,
 }
 #[allow(dead_code)]
 impl<T: io::Read + io::Seek> BARBlock<T> {
@@ -154,6 +155,7 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
         shared_reader: Rc<RefCell<T>>,
         file_offset: u32,
         file_version: u8,
+        start_verse: u8,
     ) -> BARResult<Self> {
         let reader = &mut *shared_reader.borrow_mut();
         reader.seek(io::SeekFrom::Start(u64::from(file_offset)))?;
@@ -172,11 +174,12 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
             reader: shared_reader.clone(),
             header,
             file_offset,
-            data: None,
+            start_verse,
+            verses: None,
         })
     }
 
-    pub fn data(&self) -> BARResult<Vec<u8>> {
+    fn data(&self) -> BARResult<Vec<u8>> {
         let reader = &mut *self.reader.borrow_mut();
         let header_size = match &self.header {
             BlockHeader::Ver1(_) => BlockHeaderV1::byte_size(),
@@ -214,6 +217,29 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
             )
             .into()),
         }
+    }
+
+    fn verses(&mut self) -> BARResult<&Vec<String>> {
+        if self.verses.is_none() {
+            let mut lines: Vec<String> = Vec::new();
+            for line in self.decompress()?.lines() {
+                lines.push(line.to_string());
+            }
+            self.verses = Some(lines);
+        }
+        Ok(self.verses.as_ref().unwrap())
+    }
+
+    pub fn start_verse(&self) -> u8 {
+        self.start_verse
+    }
+
+    pub fn end_verse(&mut self) -> BARResult<u8> {
+        Ok(self.start_verse + (self.verses()?.len() as u8))
+    }
+
+    pub fn verse(&mut self, index: usize) -> BARResult<&String> {
+        Ok(&self.verses()?[index])
     }
 }
 
@@ -257,7 +283,12 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
     //TODO: Remove pub
     pub fn first_block(&self) -> BARResult<BARBlock<T>> {
         //TODO: Use current_block
-        BARBlock::build(self.reader.clone(), self.file_offset, self.file_version)
+        BARBlock::build(
+            self.reader.clone(),
+            self.file_offset,
+            self.file_version,
+            0u8,
+        )
     }
 }
 

@@ -66,10 +66,11 @@ fn main() -> io::Result<()> {
     //let hex_output = hex::encode_upper(&lzo_data);
     //println!("LZO compressed {hex_output}");
 
-    let mut bar = BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\niv_v1.bar").unwrap_or_else(|_err| {
-        // ALternative on linux
-        BARFile::open(r"/home/chris/data/bible/niv_v1.bar").unwrap()
-    });
+    let mut bar = BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\niv_v1.bar")
+        .unwrap_or_else(|_err| {
+            // ALternative on linux
+            BARFile::open(r"/home/chris/data/bible/niv_v1.bar").unwrap()
+        });
     let ge = bar.book(1).unwrap();
     let chapt1 = ge.chapter(1).unwrap();
     let block = chapt1.first_block().unwrap();
