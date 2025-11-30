@@ -45,7 +45,6 @@ pub struct BARFile<T> {
     file: Rc<RefCell<T>>,
     pub header: BARFileHeader,
     pub book_index: Vec<BARBookIndexEntry>,
-    iterator_index: Option<usize>,
 }
 
 impl BinaryStruct for BARFileHeader {
@@ -154,29 +153,18 @@ impl std::fmt::Display for BARVersion {
     }
 }
 
-impl<T: io::Read + io::Seek> Iterator for BARFile<T> {
+pub struct BARFileIterator<'a, T> {
+    barfile: &'a BARFile<T>,
+    index: u8,
+}
+
+impl<'a, T: io::Seek + io::Read> Iterator for BARFileIterator<'a, T> {
     type Item = BARBook<T>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let current_index: Option<usize> = match self.iterator_index {
-            None if self.book_index.is_empty() => None,
-            None => Some(0),
-            Some(x) if x + 1 >= self.book_index.len() => None,
-            Some(x) => Some(x + 1),
-        };
-        self.iterator_index = current_index;
-        let i = match current_index {
-            None => return None,
-            Some(index) => index,
-        };
-        let entry = &self.book_index[i];
-        match entry {
-            BARBookIndexEntry::Empty => None,
-            BARBookIndexEntry::Live {
-                book_number,
-                file_offset: _,
-            } => self.book(*book_number),
-        }
+        let current_index = self.index;
+        self.index += 1;
+        self.barfile.book_from_index(current_index)
     }
 }
 
@@ -212,7 +200,6 @@ impl BARFile<File> {
             file: Rc::new(RefCell::new(file)),
             header,
             book_index,
-            iterator_index: None,
         })
     }
 
@@ -239,7 +226,6 @@ impl BARFile<File> {
             file: Rc::new(RefCell::new(file)),
             header,
             book_index,
-            iterator_index: None,
         })
     }
 }
@@ -282,7 +268,7 @@ impl<T> BARFile<T> {
 }
 
 impl<T: io::Read + io::Seek> BARFile<T> {
-    pub fn book(&mut self, book_number: u8) -> Option<BARBook<T>> {
+    pub fn book(&self, book_number: u8) -> Option<BARBook<T>> {
         let mut file_offset: u32 = 0;
         for entry in &self.book_index {
             match entry {
@@ -309,6 +295,32 @@ impl<T: io::Read + io::Seek> BARFile<T> {
         ) {
             Ok(bar) => Some(bar),
             Err(_) => None,
+        }
+    }
+
+    pub fn books<'a>(&'a self) -> BARFileIterator<'a, T> {
+        BARFileIterator {
+            barfile: &self,
+            index: 0,
+        }
+    }
+
+    pub fn book_from_index(&self, book_index: u8) -> Option<BARBook<T>> {
+        let entry = self.book_index.get(book_index as usize)?;
+        match entry {
+            BARBookIndexEntry::Empty => None,
+            BARBookIndexEntry::Live {
+                book_number,
+                file_offset,
+            } => match BARBook::build(
+                Rc::clone(&self.file),
+                *book_number,
+                *file_offset,
+                self.header.major_version,
+            ) {
+                Ok(bar) => Some(bar),
+                Err(_) => None,
+            },
         }
     }
 }
@@ -340,7 +352,6 @@ mod tests {
                 file: Rc::new(RefCell::new(file)),
                 header,
                 book_index,
-                iterator_index: None,
             }
         }
 
@@ -364,7 +375,6 @@ mod tests {
                 file: Rc::new(RefCell::new(file)),
                 header,
                 book_index,
-                iterator_index: None,
             }
         }
     }

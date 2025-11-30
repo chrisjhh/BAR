@@ -3,7 +3,7 @@ use bar::{self, BARFile};
 #[test]
 fn test_barfile() {
     // Load the testdata
-    let mut bar =
+    let bar =
         BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
     assert_eq!(bar.archive_version().0, 2);
     assert_eq!(bar.archive_version().1, 1);
@@ -11,7 +11,8 @@ fn test_barfile() {
     assert_eq!(bar.bible_version(), "KJV");
     assert_eq!(bar.number_of_books(), 3);
     assert_eq!(bar.book_capacity(), 66);
-    let book = &bar.next();
+    let mut books = bar.books();
+    let book = books.next();
     assert!(book.is_some());
     assert_eq!(book.as_ref().unwrap().book_number(), 27u8);
     assert_eq!(book.as_ref().unwrap().book_abbrev(), "Da");
@@ -26,7 +27,7 @@ fn test_barfile() {
     );
     let chapt = book.as_ref().unwrap().chapter(2);
     assert!(chapt.is_none());
-    let book = &bar.next();
+    let book = books.next();
     assert!(book.is_some());
     assert_eq!(book.as_ref().unwrap().book_number(), 1u8);
     assert_eq!(book.as_ref().unwrap().book_abbrev(), "Ge");
@@ -41,7 +42,7 @@ fn test_barfile() {
     );
     let chapt = book.as_ref().unwrap().chapter(2);
     assert!(chapt.is_none());
-    let book = &bar.next();
+    let book = books.next();
     assert!(book.is_some());
     assert_eq!(book.as_ref().unwrap().book_number(), 49u8);
     assert_eq!(book.as_ref().unwrap().book_abbrev(), "Eph");
@@ -56,7 +57,7 @@ fn test_barfile() {
     );
     let chapt = book.as_ref().unwrap().chapter(5);
     assert!(chapt.is_none());
-    let book = &bar.next();
+    let book = books.next();
     assert!(book.is_none());
     assert_eq!(
         bar.book(1).expect("Failed to get book 1").book_abbrev(),
@@ -78,7 +79,7 @@ fn test_iterators() {
     let mut output: Vec<String> = Vec::new();
     let bar =
         BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
-    for book in bar {
+    for book in bar.books() {
         output.push(book.book_name().to_string());
         output.push(format!("Chapters: {}", book.number_of_chapters()));
         for chapter in book {
