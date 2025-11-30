@@ -302,7 +302,7 @@ impl<T: io::Read + io::Seek> BARFile<T> {
             return None;
         }
         match BARBook::build(
-            self.file.clone(),
+            Rc::clone(&self.file),
             book_number,
             file_offset,
             self.header.major_version,

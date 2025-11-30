@@ -184,7 +184,7 @@ impl<T: io::Read + io::Seek> BARBook<T> {
         let chapter_index =
             BARChapterIndexEntry::read_array(usize::from(header.number_of_chapters), reader)?;
         Ok(BARBook {
-            reader: shared_reader.clone(),
+            reader: Rc::clone(&shared_reader),
             file_offset,
             header,
             chapter_index,
@@ -234,7 +234,7 @@ impl<T: io::Read + io::Seek> BARBook<T> {
             BARChapterIndexEntry::Live { additional_offset } => {
                 let file_offset = self.file_offset + additional_offset;
                 match BARChapter::build(
-                    self.reader.clone(),
+                    Rc::clone(&self.reader),
                     self.header.book_number,
                     chapter_number,
                     file_offset,

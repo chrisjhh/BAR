@@ -171,7 +171,7 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
             }
         };
         Ok(BARBlock {
-            reader: shared_reader.clone(),
+            reader: Rc::clone(&shared_reader),
             header,
             file_offset,
             start_verse,
@@ -284,7 +284,7 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
     pub fn first_block(&self) -> BARResult<BARBlock<T>> {
         //TODO: Use current_block
         BARBlock::build(
-            self.reader.clone(),
+            Rc::clone(&self.reader),
             self.file_offset,
             self.file_version,
             0u8,
