@@ -106,56 +106,39 @@ macro_rules! some_at_end {
 pub fn parse_book_abbrev(text: &str) -> Option<usize> {
     let mut chars = text.chars();
     match chars.next()? {
-        'G' => match chars.next()? {
-            'e' => some_at_end!(chars, 0, 'n'),
+        'M' => match chars.next()? {
+            't' => some_at_end!(chars, 39),
+            'k' => some_at_end!(chars, 40),
             'a' => match chars.next()? {
-                'l' => some_at_end!(chars, 47),
+                'l' => some_at_end!(chars, 38),
                 _ => None,
             },
-            _ => None,
-        },
-        'E' => match chars.next()? {
-            'x' => some_at_end!(chars, 1),
-            'z' => match chars.next()? {
-                'r' => some_at_end!(chars, 14),
-                'e' => some_at_end!(chars, 25),
-                _ => None,
-            },
-            's' => match chars.next()? {
-                't' => some_at_end!(chars, 16),
-                _ => None,
-            },
-            'c' => match chars.next()? {
-                'c' => some_at_end!(chars, 20),
-                _ => None,
-            },
-            'p' => match chars.next()? {
-                'h' => some_at_end!(chars, 48),
+            'i' => match chars.next()? {
+                'c' => some_at_end!(chars, 32),
                 _ => None,
             },
             _ => None,
         },
         'L' => match chars.next()? {
+            'k' => some_at_end!(chars, 41),
             'e' => match chars.next()? {
                 'v' => some_at_end!(chars, 2),
                 _ => None,
             },
             'a' => some_at_end!(chars, 24, 'm'),
-            'k' => some_at_end!(chars, 41),
-            _ => None,
-        },
-        'N' => match chars.next()? {
-            'u' => some_at_end!(chars, 3, 'm'),
-            'e' => some_at_end!(chars, 15),
-            'a' => some_at_end!(chars, 33),
-            _ => None,
-        },
-        'D' => match chars.next()? {
-            't' => some_at_end!(chars, 4),
-            'a' => some_at_end!(chars, 26, 'n'),
             _ => None,
         },
         'J' => match chars.next()? {
+            'n' => match chars.next() {
+                None => Some(42),
+                Some(' ') => Some(42),
+                Some('h') => some_at_end!(chars, 31),
+                _ => None,
+            },
+            'a' => match chars.next()? {
+                's' => some_at_end!(chars, 58),
+                _ => None,
+            },
             'o' => match chars.next()? {
                 's' => some_at_end!(chars, 5),
                 'b' => some_at_end!(chars, 17),
@@ -173,16 +156,6 @@ pub fn parse_book_abbrev(text: &str) -> Option<usize> {
                 'r' => some_at_end!(chars, 23),
                 _ => None,
             },
-            'n' => match chars.next() {
-                None => Some(42),
-                Some(' ') => Some(42),
-                Some('h') => some_at_end!(chars, 31),
-                _ => None,
-            },
-            'a' => match chars.next()? {
-                's' => some_at_end!(chars, 58),
-                _ => None,
-            },
             'u' => match chars.next()? {
                 'd' => match chars.next()? {
                     'e' => some_at_end!(chars, 64),
@@ -192,13 +165,86 @@ pub fn parse_book_abbrev(text: &str) -> Option<usize> {
             },
             _ => None,
         },
+        'E' => match chars.next()? {
+            'p' => match chars.next()? {
+                'h' => some_at_end!(chars, 48),
+                _ => None,
+            },
+            'x' => some_at_end!(chars, 1),
+            'z' => match chars.next()? {
+                'r' => some_at_end!(chars, 14),
+                'e' => some_at_end!(chars, 25),
+                _ => None,
+            },
+            's' => match chars.next()? {
+                't' => some_at_end!(chars, 16),
+                _ => None,
+            },
+            'c' => match chars.next()? {
+                'c' => some_at_end!(chars, 20),
+                _ => None,
+            },
+            _ => None,
+        },
+        'G' => match chars.next()? {
+            'e' => some_at_end!(chars, 0, 'n'),
+            'a' => match chars.next()? {
+                'l' => some_at_end!(chars, 47),
+                _ => None,
+            },
+            _ => None,
+        },
+        'P' => match chars.next()? {
+            's' => some_at_end!(chars, 18),
+            'r' => some_at_end!(chars, 19),
+            'h' => match chars.next()? {
+                'p' => some_at_end!(chars, 49),
+                'm' => some_at_end!(chars, 56),
+                _ => None,
+            },
+            _ => None,
+        },
+        'C' => match chars.next()? {
+            'o' => match chars.next()? {
+                'l' => some_at_end!(chars, 50),
+                _ => None,
+            },
+            _ => None,
+        },
         'R' => match chars.next()? {
-            'u' => some_at_end!(chars, 7),
             'o' => some_at_end!(chars, 44),
             'e' => match chars.next()? {
                 'v' => some_at_end!(chars, 65),
                 _ => None,
             },
+            'u' => some_at_end!(chars, 7),
+            _ => None,
+        },
+        'H' => match chars.next()? {
+            'e' => match chars.next()? {
+                'b' => some_at_end!(chars, 57),
+                _ => None,
+            },
+            'a' => match chars.next()? {
+                'b' => some_at_end!(chars, 34),
+                'g' => some_at_end!(chars, 36),
+                _ => None,
+            },
+            'o' => match chars.next()? {
+                's' => some_at_end!(chars, 27),
+                _ => None,
+            },
+            _ => None,
+        },
+        'N' => match chars.next()? {
+            'u' => some_at_end!(chars, 3, 'm'),
+            'e' => some_at_end!(chars, 15),
+            'a' => some_at_end!(chars, 33),
+            _ => None,
+        },
+        'D' => match chars.next()? {
+            'a' => some_at_end!(chars, 26, 'n'),
+            't' => some_at_end!(chars, 4),
             _ => None,
         },
         '1' => match chars.next()? {
@@ -259,21 +305,6 @@ pub fn parse_book_abbrev(text: &str) -> Option<usize> {
             },
             _ => None,
         },
-        'P' => match chars.next()? {
-            's' => some_at_end!(chars, 18),
-            'r' => some_at_end!(chars, 19),
-            'h' => match chars.next()? {
-                'p' => some_at_end!(chars, 49),
-                'm' => some_at_end!(chars, 56),
-                _ => None,
-            },
-            _ => None,
-        },
-        'S' => match chars.next()? {
-            'S' => some_at_end!(chars, 21),
-            'o' => some_at_end!(chars, 21, 'S'),
-            _ => None,
-        },
         'I' => match chars.next()? {
             's' => match chars.next()? {
                 'a' => some_at_end!(chars, 22),
@@ -281,55 +312,15 @@ pub fn parse_book_abbrev(text: &str) -> Option<usize> {
             },
             _ => None,
         },
-        'H' => match chars.next()? {
-            'o' => match chars.next()? {
-                's' => some_at_end!(chars, 27),
-                _ => None,
-            },
-            'a' => match chars.next()? {
-                'b' => some_at_end!(chars, 34),
-                'g' => some_at_end!(chars, 36),
-                _ => None,
-            },
-            'e' => match chars.next()? {
-                'b' => some_at_end!(chars, 57),
-                _ => None,
-            },
-            _ => None,
-        },
         'A' => match chars.next()? {
-            'm' => some_at_end!(chars, 29),
             'c' => some_at_end!(chars, 43),
-            _ => None,
-        },
-        'O' => match chars.next()? {
-            'b' => some_at_end!(chars, 30),
-            _ => None,
-        },
-        'M' => match chars.next()? {
-            'i' => match chars.next()? {
-                'c' => some_at_end!(chars, 32),
-                _ => None,
-            },
-            'a' => match chars.next()? {
-                'l' => some_at_end!(chars, 38),
-                _ => None,
-            },
-            't' => some_at_end!(chars, 39),
-            'k' => some_at_end!(chars, 40),
+            'm' => some_at_end!(chars, 29),
             _ => None,
         },
         'Z' => match chars.next()? {
             'e' => match chars.next()? {
-                'p' => some_at_end!(chars, 35),
                 'c' => some_at_end!(chars, 37),
-                _ => None,
-            },
-            _ => None,
-        },
-        'C' => match chars.next()? {
-            'o' => match chars.next()? {
-                'l' => some_at_end!(chars, 50),
+                'p' => some_at_end!(chars, 35),
                 _ => None,
             },
             _ => None,
@@ -346,6 +337,15 @@ pub fn parse_book_abbrev(text: &str) -> Option<usize> {
                 'n' => some_at_end!(chars, 63),
                 _ => None,
             },
+            _ => None,
+        },
+        'S' => match chars.next()? {
+            'S' => some_at_end!(chars, 21),
+            'o' => some_at_end!(chars, 21, 'S'),
+            _ => None,
+        },
+        'O' => match chars.next()? {
+            'b' => some_at_end!(chars, 30),
             _ => None,
         },
         _ => None,
