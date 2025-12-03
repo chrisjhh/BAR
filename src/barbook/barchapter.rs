@@ -1,5 +1,5 @@
 use crate::BinaryStruct;
-use crate::error::BARResult;
+use crate::error::{BARFileError, BARResult};
 use compress::CompressionError;
 use std::cell::RefCell;
 use std::io;
@@ -161,6 +161,12 @@ impl BlockHeader {
     fn chapter_number(&self) -> u8 {
         header_value!(self, chapter_number)
     }
+    fn header_size(&self) -> usize {
+        match self {
+            BlockHeader::Ver1(_) => BlockHeaderV1::byte_size(),
+            BlockHeader::Ver2(_) => BlockHeaderV2::byte_size(),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -257,8 +263,20 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
     }
 
     fn next_block(&self) -> BARResult<Option<Self>> {
-        let file_offset = self.file_offset + self.header.block_size();
-        let next = BARBlock::build(Rc::clone(&self.reader), file_offset, self.file_version())?;
+        let file_offset =
+            self.file_offset + self.header.header_size() as u32 + self.header.block_size();
+        let next = BARBlock::build(Rc::clone(&self.reader), file_offset, self.file_version());
+        if let Err(BARFileError::IOError(_)) = next {
+            // Check if we are at the end of the file
+            let reader = &mut *self.reader.borrow_mut();
+            let eof_pos = reader.seek(io::SeekFrom::End(0))?;
+            if file_offset as u64 + self.header.header_size() as u64 > eof_pos {
+                // We reached the end of the file. That is why there was an io::Error
+                // Do not treat this as an error. Just return None
+                return Ok(None);
+            }
+        }
+        let next = next?;
         if next.header.chapter_number() != self.header.chapter_number() {
             return Ok(None);
         }
@@ -310,6 +328,44 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
             result.push_str(&self.current_block.borrow().as_ref().unwrap().text()?);
         }
         Ok(result)
+    }
+
+    pub fn verse_text(&self, num: u32) -> BARResult<String> {
+        if self.current_block.borrow().is_none()
+            || self.current_block.borrow().as_ref().unwrap().start_verse() as u32 > num
+        {
+            self.fetch_first_block()?;
+        }
+        while u32::from(self.current_block.borrow().as_ref().unwrap().end_verse()) < num {
+            let ok = self.fetch_next_block()?;
+            if !ok {
+                let book = super::BOOK_NAMES[self.book_number as usize - 1];
+                return Err(BARFileError::ReferenceError(format!(
+                    "Could not retrieve verse {} for chapter {} in {}",
+                    num, self.chapter_number, book
+                )));
+            }
+        }
+        let index = num - self.current_block.borrow().as_ref().unwrap().start_verse() as u32;
+        let verse = match self
+            .current_block
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .text()?
+            .lines()
+            .nth(index as usize)
+        {
+            None => None,
+            Some(str) => Some(str.to_owned()),
+        };
+
+        match verse {
+            None => Err(BARFileError::InvalidFileFormat(
+                "Unable to get verse from block that should have contained it".to_string(),
+            )),
+            Some(text) => Ok(text),
+        }
     }
 
     fn fetch_first_block(&self) -> BARResult<()> {

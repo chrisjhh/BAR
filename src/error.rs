@@ -8,13 +8,17 @@ pub type BARResult<T> = std::result::Result<T, BARFileError>;
 pub enum BARFileError {
     InvalidFileFormat(String),
     CompressionError(String),
+    ReferenceError(String),
     IOError(String),
 }
 impl fmt::Display for BARFileError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             BARFileError::InvalidFileFormat(msg) => {
-                write!(f, "BARFile Error: Invalid File Format: {}", msg)
+                write!(f, "BARFile Invalid File Format: {}", msg)
+            }
+            BARFileError::ReferenceError(msg) => {
+                write!(f, "BARFile Reference Error: {}", msg)
             }
             BARFileError::CompressionError(err) => write!(f, "BARFile Error: {}", err),
             BARFileError::IOError(msg) => write!(f, "BARFile Error: {}", msg),

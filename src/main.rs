@@ -66,5 +66,14 @@ fn main() -> io::Result<()> {
     let text = chapt1.chapter_text().unwrap();
     println!("{text}");
 
+    let verse = bar
+        .book(19)
+        .unwrap()
+        .chapter(119)
+        .unwrap()
+        .verse_text(105)
+        .unwrap();
+    println!("{verse}");
+
     Ok(())
 }
