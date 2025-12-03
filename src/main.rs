@@ -2,8 +2,6 @@ use bar::binarystruct::BinaryStruct;
 use bar::{BARBookIndexEntry, BARFile};
 use std::{env, io};
 
-use lzokay_native;
-
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
     if args.len() > 1 {
@@ -40,7 +38,7 @@ fn main() -> io::Result<()> {
                     assert_eq!(i, chapt.chapter_number());
                     assert_eq!(chapt.book_number(), book.book_number());
                     println!("  chapter {i} present");
-                    let _data = chapt.first_block().unwrap().decompress();
+                    let _data = chapt.chapter_text().unwrap();
                     //println!("{}", chapt.first_block().unwrap().decompress())
                 }
             }
@@ -54,11 +52,8 @@ fn main() -> io::Result<()> {
         });
     let ge = bar.book(1).unwrap();
     let chapt1 = ge.chapter(1).unwrap();
-    let block = chapt1.first_block().unwrap();
-    let text = block.decompress().unwrap();
-    let _lzo_data = lzokay_native::compress(text.as_bytes()).unwrap();
-    //let hex_output = hex::encode_upper(&lzo_data);
-    //println!("LZO compressed {hex_output}");
+    let text = chapt1.chapter_text().unwrap();
+    println!("{text}");
 
     let bar = BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\niv_v1.bar").unwrap_or_else(
         |_err| {
@@ -68,11 +63,8 @@ fn main() -> io::Result<()> {
     );
     let ge = bar.book(1).unwrap();
     let chapt1 = ge.chapter(1).unwrap();
-    let block = chapt1.first_block().unwrap();
-    //let data = block.data().unwrap();
-    //let hex_output = hex::encode_upper(&data);
-    //println!("Block data {hex_output}");
-    println!("{}", block.decompress().unwrap());
+    let text = chapt1.chapter_text().unwrap();
+    println!("{text}");
 
     Ok(())
 }

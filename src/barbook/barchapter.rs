@@ -1,6 +1,6 @@
 use crate::BinaryStruct;
-use crate::barbook::barchapter::compress::CompressionError;
 use crate::error::BARResult;
+use compress::CompressionError;
 use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
@@ -134,29 +134,45 @@ impl BinaryStruct for BlockHeaderV1 {
     }
 }
 
+macro_rules! header_value {
+    ($self:ident, $value:ident) => {
+        match $self {
+            BlockHeader::Ver1(header) => header.$value,
+            BlockHeader::Ver2(header) => header.$value,
+        }
+    };
+}
+
 #[allow(dead_code)]
 enum BlockHeader {
     Ver1(BlockHeaderV1),
     Ver2(BlockHeaderV2),
 }
+impl BlockHeader {
+    fn block_size(&self) -> u32 {
+        header_value!(self, block_size)
+    }
+    fn start_verse(&self) -> u8 {
+        header_value!(self, start_verse)
+    }
+    fn end_verse(&self) -> u8 {
+        header_value!(self, end_verse)
+    }
+    fn chapter_number(&self) -> u8 {
+        header_value!(self, chapter_number)
+    }
+}
 
-//TODO: Remove pub
 #[allow(dead_code)]
-pub struct BARBlock<T> {
+struct BARBlock<T> {
     reader: Rc<RefCell<T>>,
     header: BlockHeader,
     file_offset: u32,
-    start_verse: u8,
-    verses: Option<Vec<String>>,
+    text: RefCell<Option<String>>,
 }
 #[allow(dead_code)]
 impl<T: io::Read + io::Seek> BARBlock<T> {
-    pub fn build(
-        shared_reader: Rc<RefCell<T>>,
-        file_offset: u32,
-        file_version: u8,
-        start_verse: u8,
-    ) -> BARResult<Self> {
+    fn build(shared_reader: Rc<RefCell<T>>, file_offset: u32, file_version: u8) -> BARResult<Self> {
         let reader = &mut *shared_reader.borrow_mut();
         reader.seek(io::SeekFrom::Start(u64::from(file_offset)))?;
         let header: BlockHeader = match file_version {
@@ -174,8 +190,7 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
             reader: Rc::clone(&shared_reader),
             header,
             file_offset,
-            start_verse,
-            verses: None,
+            text: RefCell::new(None),
         })
     }
 
@@ -204,7 +219,7 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
         }
     }
 
-    pub fn decompress(&self) -> BARResult<String> {
+    fn decompress(&self) -> BARResult<String> {
         let data = self.data()?;
         match self.compression_algorith() {
             CompressionAlgorithm::None => Ok(compress::none::decompress(&data)?),
@@ -219,27 +234,35 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
         }
     }
 
-    fn verses(&mut self) -> BARResult<&Vec<String>> {
-        if self.verses.is_none() {
-            let mut lines: Vec<String> = Vec::new();
-            for line in self.decompress()?.lines() {
-                lines.push(line.to_string());
-            }
-            self.verses = Some(lines);
+    pub fn text(&self) -> BARResult<String> {
+        if self.text.borrow().is_none() {
+            *self.text.borrow_mut() = Some(self.decompress()?)
         }
-        Ok(self.verses.as_ref().unwrap())
+        Ok(self.text.borrow().as_ref().unwrap().clone())
     }
 
-    pub fn start_verse(&self) -> u8 {
-        self.start_verse
+    fn start_verse(&self) -> u8 {
+        self.header.start_verse()
     }
 
-    pub fn end_verse(&mut self) -> BARResult<u8> {
-        Ok(self.start_verse + (self.verses()?.len() as u8))
+    fn end_verse(&self) -> u8 {
+        self.header.end_verse()
     }
 
-    pub fn verse(&mut self, index: usize) -> BARResult<&String> {
-        Ok(&self.verses()?[index])
+    fn file_version(&self) -> u8 {
+        match self.header {
+            BlockHeader::Ver1(_) => 1,
+            BlockHeader::Ver2(_) => 2,
+        }
+    }
+
+    fn next_block(&self) -> BARResult<Option<Self>> {
+        let file_offset = self.file_offset + self.header.block_size();
+        let next = BARBlock::build(Rc::clone(&self.reader), file_offset, self.file_version())?;
+        if next.header.chapter_number() != self.header.chapter_number() {
+            return Ok(None);
+        }
+        Ok(Some(next))
     }
 }
 
@@ -250,7 +273,7 @@ pub struct BARChapter<T> {
     chapter_number: u8,
     file_version: u8,
     file_offset: u32,
-    current_block: Option<BARBlock<T>>,
+    current_block: RefCell<Option<BARBlock<T>>>,
 }
 
 #[allow(dead_code)]
@@ -268,7 +291,7 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
             chapter_number,
             file_version,
             file_offset,
-            current_block: None,
+            current_block: RefCell::new(None),
         })
     }
 
@@ -280,15 +303,35 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
         self.book_number
     }
 
-    //TODO: Remove pub
-    pub fn first_block(&self) -> BARResult<BARBlock<T>> {
-        //TODO: Use current_block
-        BARBlock::build(
-            Rc::clone(&self.reader),
-            self.file_offset,
-            self.file_version,
-            0u8,
-        )
+    pub fn chapter_text(&self) -> BARResult<String> {
+        self.fetch_first_block()?;
+        let mut result = self.current_block.borrow().as_ref().unwrap().text()?;
+        while self.fetch_next_block()? {
+            result.push_str(&self.current_block.borrow().as_ref().unwrap().text()?);
+        }
+        Ok(result)
+    }
+
+    fn fetch_first_block(&self) -> BARResult<()> {
+        if self.current_block.borrow().is_none()
+            || self.current_block.borrow().as_ref().unwrap().start_verse() != 0u8
+        {
+            *self.current_block.borrow_mut() = Some(BARBlock::build(
+                Rc::clone(&self.reader),
+                self.file_offset,
+                self.file_version,
+            )?);
+        }
+        Ok(())
+    }
+
+    fn fetch_next_block(&self) -> BARResult<bool> {
+        let next = self.current_block.borrow().as_ref().unwrap().next_block()?;
+        if next.is_none() {
+            return Ok(false);
+        }
+        *self.current_block.borrow_mut() = next;
+        Ok(true)
     }
 }
 
