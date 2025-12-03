@@ -67,7 +67,7 @@ fn main() -> io::Result<()> {
     println!("{text}");
 
     let verse = bar
-        .book(19)
+        .book_from_abbrev("Ps")
         .unwrap()
         .chapter(119)
         .unwrap()

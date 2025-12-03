@@ -1,4 +1,5 @@
 use bar::{self, BARFile};
+use crc32fast;
 
 #[test]
 fn test_barfile() {
@@ -102,4 +103,59 @@ fn test_iterators() {
             "- Chapter 4"
         )
     );
+}
+
+#[test]
+fn test_verses() {
+    let bar =
+        BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
+
+    let ge = bar.book_from_abbrev("Ge").unwrap();
+    let chapt1 = ge.chapter(1).unwrap();
+    let verse = chapt1.verse_text(27).unwrap();
+    assert_eq!(
+        verse,
+        "So God created man in his own image, in the image of God created he him; male and female created he them."
+    );
+
+    let da = bar.book_from_abbrev("Da").unwrap();
+    let chapt1 = da.chapter(1).unwrap();
+    let verse = chapt1.verse_text(21).unwrap();
+    assert_eq!(
+        verse,
+        "And Daniel continued even unto the first year of king Cyrus."
+    );
+
+    let eph = bar.book_from_abbrev("Eph").unwrap();
+    let chapt4 = eph.chapter(4).unwrap();
+    let verse = chapt4.verse_text(11).unwrap();
+    assert_eq!(
+        verse,
+        "And he gave some, apostles; and some, prophets; and some, evangelists; and some, pastors and teachers;"
+    );
+
+    let verse = chapt4.verse_text(33);
+    assert!(verse.is_err());
+}
+
+#[test]
+fn test_chapter_text() {
+    let bar =
+        BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
+
+    let ge = bar.book_from_abbrev("Ge").unwrap();
+    let chapt1 = ge.chapter(1).unwrap();
+
+    let text = chapt1.chapter_text().unwrap();
+    assert_eq!(crc32fast::hash(text.as_bytes()), 2672530595);
+
+    let da = bar.book_from_abbrev("Da").unwrap();
+    let chapt1 = da.chapter(1).unwrap();
+    let text = chapt1.chapter_text().unwrap();
+    assert_eq!(crc32fast::hash(text.as_bytes()), 1895967111);
+
+    let eph = bar.book_from_abbrev("Eph").unwrap();
+    let chapt4 = eph.chapter(4).unwrap();
+    let text = chapt4.chapter_text().unwrap();
+    assert_eq!(crc32fast::hash(text.as_bytes()), 397479874);
 }

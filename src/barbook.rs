@@ -4,7 +4,7 @@ use std::error::Error;
 use std::io;
 use std::rc::Rc;
 
-const BOOK_NAMES: [&str; 66] = [
+pub const BOOK_NAMES: [&str; 66] = [
     "Genesis",
     "Exodus",
     "Leviticus",
@@ -72,7 +72,7 @@ const BOOK_NAMES: [&str; 66] = [
     "Jude",
     "Revelation",
 ];
-const BOOK_ABBREVS: [&str; 66] = [
+pub const BOOK_ABBREVS: [&str; 66] = [
     "Ge", "Ex", "Lev", "Nu", "Dt", "Jos", "Jdg", "Ru", "1Sa", "2Sa", "1Ki", "2Ki", "1Ch",
     "2Ch", // 0-13
     "Ezr", "Ne", "Est", "Job", "Ps", "Pr", "Ecc", "SS", "Isa", "Jer", "La", "Eze", "Da",

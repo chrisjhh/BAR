@@ -242,9 +242,9 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
 
     pub fn text(&self) -> BARResult<String> {
         if self.text.borrow().is_none() {
-            *self.text.borrow_mut() = Some(self.decompress()?)
+            return Ok(self.decompress()?);
         }
-        Ok(self.text.borrow().as_ref().unwrap().clone())
+        Ok(self.text.borrow_mut().take().unwrap())
     }
 
     fn start_verse(&self) -> u8 {
