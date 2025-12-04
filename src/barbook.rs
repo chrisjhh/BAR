@@ -518,24 +518,30 @@ impl<T: io::Read + io::Seek> BARBook<T> {
             }
         }
     }
+
+    pub fn chapters<'a>(&'a self) -> BARBookIterator<'a, T> {
+        BARBookIterator {
+            barbook: &self,
+            index: 1,
+        }
+    }
 }
 
-impl<T: io::Read + io::Seek> Iterator for BARBook<T> {
+pub struct BARBookIterator<'a, T: io::Seek + io::Read> {
+    barbook: &'a BARBook<T>,
+    index: u8,
+}
+
+impl<'a, T: io::Seek + io::Read> Iterator for BARBookIterator<'a, T> {
     type Item = Option<BARChapter<T>>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let current_index: Option<usize> = match self.iterator_index {
-            None if self.chapter_index.is_empty() => None,
-            None => Some(1),
-            Some(x) if x + 1 > self.chapter_index.len() => None,
-            Some(x) => Some(x + 1),
-        };
-        self.iterator_index = current_index;
-        let i = match current_index {
-            None => return None,
-            Some(index) => index,
-        };
-        Some(self.chapter(i as u8))
+        let current_index = self.index;
+        if current_index as usize >= self.barbook.chapter_index.len() {
+            return None;
+        }
+        self.index += 1;
+        Some(self.barbook.chapter(current_index))
     }
 }
 

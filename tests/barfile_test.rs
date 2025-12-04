@@ -83,7 +83,7 @@ fn test_iterators() {
     for book in bar.books() {
         output.push(book.book_name().to_string());
         output.push(format!("Chapters: {}", book.number_of_chapters()));
-        for chapter in book {
+        for chapter in book.chapters() {
             if chapter.is_some() {
                 output.push(format!("- Chapter {}", chapter.unwrap().chapter_number()));
             }
