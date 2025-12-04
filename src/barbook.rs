@@ -537,7 +537,7 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARBookIterator<'a, T> {
 
     fn next(&mut self) -> Option<Self::Item> {
         let current_index = self.index;
-        if current_index as usize >= self.barbook.chapter_index.len() {
+        if current_index as usize > self.barbook.chapter_index.len() {
             return None;
         }
         self.index += 1;

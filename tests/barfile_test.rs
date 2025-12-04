@@ -87,6 +87,7 @@ fn test_iterators() {
             if chapter.is_some() {
                 output.push(format!("- Chapter {}", chapter.unwrap().chapter_number()));
             }
+            assert_eq!(book.chapters().count(), book.number_of_chapters() as usize);
         }
     }
     assert_eq!(
