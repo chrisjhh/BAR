@@ -66,14 +66,13 @@ fn main() -> io::Result<()> {
     let text = chapt1.chapter_text().unwrap();
     println!("{text}");
 
-    let verse = bar
-        .book_from_abbrev("Ps")
-        .unwrap()
-        .chapter(119)
-        .unwrap()
-        .verse_text(105)
-        .unwrap();
+    let ps119 = bar.book_from_abbrev("Ps").unwrap().chapter(119).unwrap();
+
+    let verse = ps119.verse_text(105).unwrap();
     println!("{verse}");
+
+    let num_verses = ps119.number_of_verses().unwrap();
+    println!("Psalm 119 has {num_verses} verses.");
 
     Ok(())
 }

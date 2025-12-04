@@ -159,3 +159,21 @@ fn test_chapter_text() {
     let text = chapt4.chapter_text().unwrap();
     assert_eq!(crc32fast::hash(text.as_bytes()), 397479874);
 }
+
+#[test]
+fn test_number_of_verses() {
+    let bar =
+        BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
+
+    let ge = bar.book_from_abbrev("Ge").unwrap();
+    let chapt1 = ge.chapter(1).unwrap();
+    assert_eq!(chapt1.number_of_verses().unwrap(), 31);
+
+    let da = bar.book_from_abbrev("Da").unwrap();
+    let chapt1 = da.chapter(1).unwrap();
+    assert_eq!(chapt1.number_of_verses().unwrap(), 21);
+
+    let eph = bar.book_from_abbrev("Eph").unwrap();
+    let chapt4 = eph.chapter(4).unwrap();
+    assert_eq!(chapt4.number_of_verses().unwrap(), 32);
+}

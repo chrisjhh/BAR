@@ -389,6 +389,14 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
         *self.current_block.borrow_mut() = next;
         Ok(true)
     }
+
+    pub fn number_of_verses(&self) -> BARResult<u8> {
+        if self.current_block.borrow().is_none() {
+            self.fetch_first_block()?;
+        }
+        while self.fetch_next_block()? {}
+        Ok(self.current_block.borrow().as_ref().unwrap().end_verse())
+    }
 }
 
 #[allow(dead_code)]
