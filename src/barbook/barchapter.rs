@@ -242,7 +242,7 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
         }
     }
 
-    pub fn text(&self) -> BARResult<String> {
+    fn text(&self) -> BARResult<String> {
         if self.text.borrow().is_none() {
             return Ok(self.decompress()?);
         }
@@ -379,15 +379,15 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
         }
     }
 
+    fn first_block(&self) -> BARResult<BARBlock<T>> {
+        BARBlock::build(Rc::clone(&self.reader), self.file_offset, self.file_version)
+    }
+
     fn fetch_first_block(&self) -> BARResult<()> {
         if self.current_block.borrow().is_none()
             || self.current_block.borrow().as_ref().unwrap().start_verse() != 0u8
         {
-            *self.current_block.borrow_mut() = Some(BARBlock::build(
-                Rc::clone(&self.reader),
-                self.file_offset,
-                self.file_version,
-            )?);
+            *self.current_block.borrow_mut() = Some(self.first_block()?);
         }
         Ok(())
     }
