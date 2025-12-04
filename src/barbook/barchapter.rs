@@ -175,6 +175,7 @@ struct BARBlock<T> {
     header: BlockHeader,
     file_offset: u32,
     text: RefCell<Option<String>>,
+    is_known_last: RefCell<bool>,
 }
 #[allow(dead_code)]
 impl<T: io::Read + io::Seek> BARBlock<T> {
@@ -197,6 +198,7 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
             header,
             file_offset,
             text: RefCell::new(None),
+            is_known_last: RefCell::new(false),
         })
     }
 
@@ -263,6 +265,11 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
     }
 
     fn next_block(&self) -> BARResult<Option<Self>> {
+        // Check if we already know we are the last block
+        if *self.is_known_last.borrow() {
+            // We are already at the end
+            return Ok(None);
+        }
         let file_offset =
             self.file_offset + self.header.header_size() as u32 + self.header.block_size();
         let next = BARBlock::build(Rc::clone(&self.reader), file_offset, self.file_version());
@@ -273,11 +280,15 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
             if file_offset as u64 + self.header.header_size() as u64 > eof_pos {
                 // We reached the end of the file. That is why there was an io::Error
                 // Do not treat this as an error. Just return None
+                *self.is_known_last.borrow_mut() = true;
                 return Ok(None);
             }
         }
         let next = next?;
         if next.header.chapter_number() != self.header.chapter_number() {
+            // This is the last block
+            // Record that we know as mutch so we don't have to check again
+            *self.is_known_last.borrow_mut() = true;
             return Ok(None);
         }
         Ok(Some(next))
