@@ -174,7 +174,7 @@ struct BARBlock<T> {
     reader: Rc<RefCell<T>>,
     header: BlockHeader,
     file_offset: u32,
-    text: RefCell<Option<String>>,
+    text: RefCell<Option<Rc<String>>>,
     is_known_last: RefCell<bool>,
 }
 #[allow(dead_code)]
@@ -242,11 +242,11 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
         }
     }
 
-    fn text(&self) -> BARResult<String> {
+    fn text(&self) -> BARResult<Rc<String>> {
         if self.text.borrow().is_none() {
-            return Ok(self.decompress()?);
+            *self.text.borrow_mut() = Some(Rc::new(self.decompress()?));
         }
-        Ok(self.text.borrow_mut().take().unwrap())
+        Ok(Rc::clone(&self.text.borrow_mut().as_ref().unwrap()))
     }
 
     fn start_verse(&self) -> u8 {
@@ -332,11 +332,12 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
         self.book_number
     }
 
-    pub fn chapter_text(&self) -> BARResult<String> {
+    pub fn chapter_text(&self) -> BARResult<Rc<String>> {
         self.fetch_first_block()?;
         let mut result = self.current_block.borrow().as_ref().unwrap().text()?;
         while self.fetch_next_block()? {
-            result.push_str(&self.current_block.borrow().as_ref().unwrap().text()?);
+            Rc::make_mut(&mut result)
+                .push_str(&self.current_block.borrow().as_ref().unwrap().text()?);
         }
         Ok(result)
     }
