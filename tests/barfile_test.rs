@@ -107,6 +107,20 @@ fn test_iterators() {
 }
 
 #[test]
+fn test_into_iterator() {
+    let bar =
+        BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
+    let mut count = 0;
+    // Implicitly convert BARFile into iterator by using in for loop
+    // This consumes the BARFile and it cannot be used afterwards.
+    // Unlike with the iterator returned by books()
+    for _book in bar {
+        count += 1;
+    }
+    assert_eq!(count, 3);
+}
+
+#[test]
 fn test_verses() {
     let bar =
         BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");

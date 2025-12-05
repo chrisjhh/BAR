@@ -168,6 +168,31 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARFileIterator<'a, T> {
     }
 }
 
+pub struct BARFileIntoIterator<T> {
+    barfile: BARFile<T>,
+    index: u8,
+}
+impl<T: io::Seek + io::Read> Iterator for BARFileIntoIterator<T> {
+    type Item = BARBook<T>;
+    fn next(&mut self) -> Option<Self::Item> {
+        let current_index = self.index;
+        self.index += 1;
+        self.barfile.book_from_index(current_index)
+    }
+}
+
+impl<T: io::Seek + io::Read> IntoIterator for BARFile<T> {
+    type Item = BARBook<T>;
+    type IntoIter = BARFileIntoIterator<T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        BARFileIntoIterator {
+            barfile: self,
+            index: 0,
+        }
+    }
+}
+
 #[allow(dead_code)]
 impl BARFile<File> {
     pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
