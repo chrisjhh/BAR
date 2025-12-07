@@ -411,5 +411,81 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
     }
 }
 
+struct BARChapterIterator<'a, T> {
+    chapter: &'a BARChapter<T>,
+    block: Option<BARBlock<T>>,
+    text: Option<Rc<String>>,
+    newline_pos: usize,
+}
+impl<'a, T: io::Seek + io::Read> Iterator for BARChapterIterator<'a, T> {
+    type Item = &'a str;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.block.is_none() {
+            // We don't have a block
+            // See if we can take the first block from the chapter
+            if self.chapter.current_block.borrow().is_some()
+                && self
+                    .chapter
+                    .current_block
+                    .borrow()
+                    .as_ref()
+                    .unwrap()
+                    .start_verse()
+                    == 0
+            {
+                self.block = self.chapter.current_block.borrow_mut().take();
+            } else {
+                // Chapter doesn't have the first block
+                // Fetch it
+                let block = self.chapter.first_block();
+                if block.is_err() {
+                    return None;
+                }
+                self.block = Some(block.unwrap());
+            }
+        }
+        if self.text.is_none() {
+            let text = self.block.as_ref().unwrap().text();
+            if text.is_err() {
+                return None;
+            }
+            self.text = Some(text.unwrap());
+        }
+        let start = self.newline_pos + 1;
+        let next_newline = &self.text.as_ref().unwrap()[start..].find("\n");
+        if next_newline.is_some() {
+            let next_newline = next_newline.unwrap();
+            let Self { text, .. } = self;
+            //let res = &text.as_ref().unwrap()[start..next_newline];
+            self.newline_pos = next_newline;
+            return Some(&text.as_ref().unwrap()[start..next_newline]);
+        }
+        // Reached the end of this block
+        // See if there is another one
+        let next = self.block.as_ref().unwrap().next_block();
+        match next {
+            Err(_) => return None,
+            Ok(None) => return None,
+            Ok(block @ Some(_)) => self.block = block,
+        }
+        // Unpack the new text
+        let text = self.block.as_ref().unwrap().text();
+        if text.is_err() {
+            return None;
+        }
+        self.text = Some(text.unwrap());
+        let next_newline = &self.text.as_ref().unwrap().find("\n");
+        if next_newline.is_some() {
+            let next_newline = next_newline.unwrap();
+            let Self { text, .. } = self;
+            let res = &text.as_ref().unwrap()[..next_newline];
+            self.newline_pos = next_newline;
+            return Some(res);
+        }
+        None
+    }
+}
+
 #[allow(dead_code)]
 mod compress;
