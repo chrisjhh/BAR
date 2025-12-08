@@ -1,3 +1,4 @@
+use std::fmt::Display;
 use std::ops::{Deref, Range};
 use std::rc::Rc;
 
@@ -5,6 +6,12 @@ use std::rc::Rc;
 pub struct RcSubstring {
     rcstring: Rc<String>,
     range: Range<usize>,
+}
+
+impl Display for RcSubstring {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", &self.rcstring[self.range.start..self.range.end])
+    }
 }
 
 #[allow(dead_code)]

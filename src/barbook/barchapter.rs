@@ -383,6 +383,15 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
         }
     }
 
+    pub fn verses<'a>(&'a self) -> BARChapterIterator<'a, T> {
+        BARChapterIterator {
+            chapter: &self,
+            block: None,
+            text: None,
+            newline_pos: 0,
+        }
+    }
+
     fn first_block(&self) -> BARResult<BARBlock<T>> {
         BARBlock::build(Rc::clone(&self.reader), self.file_offset, self.file_version)
     }
@@ -415,7 +424,7 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
 }
 
 #[allow(dead_code)]
-struct BARChapterIterator<'a, T> {
+pub struct BARChapterIterator<'a, T> {
     chapter: &'a BARChapter<T>,
     block: Option<BARBlock<T>>,
     text: Option<Rc<String>>,
@@ -456,11 +465,11 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARChapterIterator<'a, T> {
             }
             self.text = Some(text.unwrap());
         }
-        let start = self.newline_pos + 1;
+        let start = self.newline_pos;
         let next_newline = &self.text.as_ref().unwrap()[start..].find("\n");
         if next_newline.is_some() {
-            let next_newline = next_newline.unwrap();
-            self.newline_pos = next_newline;
+            let next_newline = start + next_newline.unwrap();
+            self.newline_pos = next_newline + 1;
             return Some(RcSubstring::new(
                 Rc::clone(&self.text.as_ref().unwrap()),
                 start..next_newline,
@@ -484,7 +493,7 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARChapterIterator<'a, T> {
         if next_newline.is_some() {
             let next_newline = next_newline.unwrap();
             let res = RcSubstring::new(Rc::clone(&self.text.as_ref().unwrap()), 0..next_newline);
-            self.newline_pos = next_newline;
+            self.newline_pos = next_newline + 1;
             return Some(res);
         }
         None

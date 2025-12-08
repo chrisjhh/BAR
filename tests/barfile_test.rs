@@ -192,3 +192,26 @@ fn test_number_of_verses() {
     let chapt4 = eph.chapter(4).unwrap();
     assert_eq!(chapt4.number_of_verses().unwrap(), 32);
 }
+
+#[test]
+fn test_verse_iterator() {
+    let bar =
+        BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
+    for book in bar.books() {
+        for chapter in book.chapters() {
+            if let Some(chapter) = chapter {
+                for (i, verse) in chapter.verses().enumerate() {
+                    if verse.contains("God") {
+                        println!(
+                            "{} {}:{} {}",
+                            book.book_abbrev(),
+                            chapter.chapter_number(),
+                            i + 1,
+                            verse
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
