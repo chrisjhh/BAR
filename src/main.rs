@@ -74,5 +74,11 @@ fn main() -> io::Result<()> {
     let num_verses = ps119.number_of_verses().unwrap();
     println!("Psalm 119 has {num_verses} verses.");
 
+    for (i, verse) in ps119.verses().enumerate() {
+        if verse.contains("word") {
+            println!("Ps 119:{} {}", i + 1, verse);
+        }
+    }
+
     Ok(())
 }
