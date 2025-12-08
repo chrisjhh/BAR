@@ -5,6 +5,9 @@ use std::cell::RefCell;
 use std::io;
 use std::rc::Rc;
 
+mod rcsubstring;
+use rcsubstring::RcSubstring;
+
 #[derive(Debug, Clone)]
 pub enum CompressionAlgorithm {
     None,
@@ -411,6 +414,7 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
     }
 }
 
+#[allow(dead_code)]
 struct BARChapterIterator<'a, T> {
     chapter: &'a BARChapter<T>,
     block: Option<BARBlock<T>>,
@@ -418,7 +422,7 @@ struct BARChapterIterator<'a, T> {
     newline_pos: usize,
 }
 impl<'a, T: io::Seek + io::Read> Iterator for BARChapterIterator<'a, T> {
-    type Item = &'a str;
+    type Item = RcSubstring;
 
     fn next(&mut self) -> Option<Self::Item> {
         if self.block.is_none() {
@@ -456,10 +460,11 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARChapterIterator<'a, T> {
         let next_newline = &self.text.as_ref().unwrap()[start..].find("\n");
         if next_newline.is_some() {
             let next_newline = next_newline.unwrap();
-            let Self { text, .. } = self;
-            //let res = &text.as_ref().unwrap()[start..next_newline];
             self.newline_pos = next_newline;
-            return Some(&text.as_ref().unwrap()[start..next_newline]);
+            return Some(RcSubstring::new(
+                Rc::clone(&self.text.as_ref().unwrap()),
+                start..next_newline,
+            ));
         }
         // Reached the end of this block
         // See if there is another one
@@ -478,8 +483,7 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARChapterIterator<'a, T> {
         let next_newline = &self.text.as_ref().unwrap().find("\n");
         if next_newline.is_some() {
             let next_newline = next_newline.unwrap();
-            let Self { text, .. } = self;
-            let res = &text.as_ref().unwrap()[..next_newline];
+            let res = RcSubstring::new(Rc::clone(&self.text.as_ref().unwrap()), 0..next_newline);
             self.newline_pos = next_newline;
             return Some(res);
         }
