@@ -1,3 +1,24 @@
+//! BibleArchive (BAR) - Read and write to BARFile format files
+//!
+//! # Example
+//! ```rust
+//! # fn main() -> Result<(), Box<dyn std::error::Error>> {
+//! use bar::BARFile;
+//! let mut verse: Option<String> = None;
+//! let bar = BARFile::open("tests/data/KJV.ibar")?;
+//! if let Some(book) = bar.book_from_abbrev("Ge") {
+//!   if let Some(chapter) = book.chapter(1) {
+//!       verse = Some(chapter.verse_text(27)?);
+//!   }
+//! }
+//! assert_eq!(
+//!    verse.unwrap(),
+//!    "So God created man in his own image, in the image of God created he him; male and female created he them."
+//! );
+//! # Ok(())
+//! }
+//! ```
+
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
