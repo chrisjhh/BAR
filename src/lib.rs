@@ -26,13 +26,13 @@ macro_rules! check_size {
 
 pub struct BARFileHeader {
     leader: [u8; 3],
-    pub major_version: u8,
-    pub minor_version: u8,
-    pub number_of_books: u8,
-    pub version_abbrev: String,
+    major_version: u8,
+    minor_version: u8,
+    number_of_books: u8,
+    version_abbrev: String,
 }
 
-pub enum BARBookIndexEntry {
+enum BARBookIndexEntry {
     Live {
         book_number: u8, // (1=Gen 66=Rev)
         file_offset: u32,
@@ -43,8 +43,8 @@ pub enum BARBookIndexEntry {
 #[allow(dead_code)]
 pub struct BARFile<T> {
     file: Rc<RefCell<T>>,
-    pub header: BARFileHeader,
-    pub book_index: Vec<BARBookIndexEntry>,
+    header: BARFileHeader,
+    book_index: Vec<BARBookIndexEntry>,
 }
 
 impl BinaryStruct for BARFileHeader {

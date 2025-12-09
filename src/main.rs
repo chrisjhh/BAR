@@ -1,5 +1,4 @@
-use bar::binarystruct::BinaryStruct;
-use bar::{BARBookIndexEntry, BARFile};
+use bar::BARFile;
 use std::{env, io};
 
 fn main() -> io::Result<()> {
@@ -7,23 +6,9 @@ fn main() -> io::Result<()> {
     if args.len() > 1 {
         let file_path = &args[1];
         let bar = BARFile::open(file_path).expect("Failed to open");
-        let hex_output = format!("{:?}", bar.header.to_bytes());
-        println!("{hex_output}");
         println!("Version {}", bar.archive_version());
         println!("{}", bar.bible_version());
-        let mut book_numbers: Vec<u8> = Vec::new();
-        for entry in &bar.book_index {
-            match entry {
-                BARBookIndexEntry::Live {
-                    book_number,
-                    file_offset,
-                } => {
-                    book_numbers.push(*book_number);
-                    println!("{} {}", book_number, file_offset);
-                }
-                BARBookIndexEntry::Empty => break,
-            }
-        }
+
         for book in bar.books() {
             println!(
                 "Book {} {} ({}). Number of chapters {}.",
@@ -85,15 +70,17 @@ fn main() -> io::Result<()> {
             if let Some(chapter) = chapter {
                 let mut count = 0;
                 for (_i, verse) in chapter.verses().enumerate() {
-                    if verse.contains("seven") {
+                    if verse.contains("seven") || verse.contains("Seven") {
                         count += 1;
-                        /*println!(
+                        /*
+                        println!(
                             "{} {}:{} {}",
                             book.book_abbrev(),
                             chapter.chapter_number(),
                             i + 1,
                             verse
-                        )*/
+                        )
+                        */
                     }
                 }
                 if count > 5 {
