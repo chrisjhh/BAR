@@ -229,7 +229,7 @@ impl BARFile<File> {
         }
         if header.version_abbrev.is_empty() {
             return Err(
-                format!("Invalid BAR file. Version Abbrev not specified or corrupt.").into(),
+                "Invalid BAR file. Version abbrev in header not specified or corrupt.".into(),
             );
         }
         if header.major_version > CURRENT_VERSION.0 {
@@ -333,20 +333,18 @@ impl<T: io::Read + io::Seek> BARFile<T> {
         if file_offset == 0 {
             return None;
         }
-        match BARBook::build(
+        BARBook::build(
             Rc::clone(&self.file),
             book_number,
             file_offset,
             self.header.major_version,
-        ) {
-            Ok(bar) => Some(bar),
-            Err(_) => None,
-        }
+        )
+        .ok()
     }
 
     pub fn books<'a>(&'a self) -> BARFileIterator<'a, T> {
         BARFileIterator {
-            barfile: &self,
+            barfile: self,
             index: 0,
         }
     }
@@ -358,15 +356,13 @@ impl<T: io::Read + io::Seek> BARFile<T> {
             BARBookIndexEntry::Live {
                 book_number,
                 file_offset,
-            } => match BARBook::build(
+            } => BARBook::build(
                 Rc::clone(&self.file),
                 *book_number,
                 *file_offset,
                 self.header.major_version,
-            ) {
-                Ok(bar) => Some(bar),
-                Err(_) => None,
-            },
+            )
+            .ok(),
         }
     }
 

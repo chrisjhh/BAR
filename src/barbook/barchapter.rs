@@ -2,6 +2,7 @@ use crate::BinaryStruct;
 use crate::error::{BARFileError, BARResult};
 use compress::CompressionError;
 use std::cell::RefCell;
+use std::fmt::Display;
 use std::io;
 use std::rc::Rc;
 
@@ -27,9 +28,10 @@ impl From<u8> for CompressionAlgorithm {
         }
     }
 }
-impl Into<u8> for &CompressionAlgorithm {
-    fn into(self) -> u8 {
-        match self {
+
+impl From<&CompressionAlgorithm> for u8 {
+    fn from(val: &CompressionAlgorithm) -> Self {
+        match val {
             CompressionAlgorithm::None => 0,
             CompressionAlgorithm::Lzo => 1,
             CompressionAlgorithm::ZLib => 2,
@@ -38,15 +40,19 @@ impl Into<u8> for &CompressionAlgorithm {
         }
     }
 }
-impl ToString for CompressionAlgorithm {
-    fn to_string(&self) -> String {
-        match self {
-            CompressionAlgorithm::None => "None".to_string(),
-            CompressionAlgorithm::Lzo => "LZO".to_string(),
-            CompressionAlgorithm::ZLib => "ZLIB".to_string(),
-            CompressionAlgorithm::GZip => "GZip".to_string(),
-            CompressionAlgorithm::Unknown => "Unknown".to_string(),
-        }
+impl Display for CompressionAlgorithm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}",
+            match self {
+                CompressionAlgorithm::None => "None",
+                CompressionAlgorithm::Lzo => "LZO",
+                CompressionAlgorithm::ZLib => "ZLIB",
+                CompressionAlgorithm::GZip => "GZip",
+                CompressionAlgorithm::Unknown => "Unknown",
+            }
+        )
     }
 }
 
@@ -249,7 +255,7 @@ impl<T: io::Read + io::Seek> BARBlock<T> {
         if self.text.borrow().is_none() {
             *self.text.borrow_mut() = Some(Rc::new(self.decompress()?));
         }
-        Ok(Rc::clone(&self.text.borrow_mut().as_ref().unwrap()))
+        Ok(Rc::clone(self.text.borrow_mut().as_ref().unwrap()))
     }
 
     fn start_verse(&self) -> u8 {
@@ -362,7 +368,7 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
             }
         }
         let index = num - self.current_block.borrow().as_ref().unwrap().start_verse() as u32;
-        let verse = match self
+        let verse = self
             .current_block
             .borrow()
             .as_ref()
@@ -370,10 +376,7 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
             .text()?
             .lines()
             .nth(index as usize)
-        {
-            None => None,
-            Some(str) => Some(str.to_owned()),
-        };
+            .map(|str| str.to_owned());
 
         match verse {
             None => Err(BARFileError::InvalidFileFormat(
@@ -385,7 +388,7 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
 
     pub fn verses<'a>(&'a self) -> BARChapterIterator<'a, T> {
         BARChapterIterator {
-            chapter: &self,
+            chapter: self,
             block: None,
             text: None,
             newline_pos: 0,
@@ -471,7 +474,7 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARChapterIterator<'a, T> {
             let next_newline = start + next_newline.unwrap();
             self.newline_pos = next_newline + 1;
             return Some(RcSubstring::new(
-                Rc::clone(&self.text.as_ref().unwrap()),
+                Rc::clone(self.text.as_ref().unwrap()),
                 start..next_newline,
             ));
         }
@@ -492,7 +495,7 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARChapterIterator<'a, T> {
         let next_newline = &self.text.as_ref().unwrap().find("\n");
         if next_newline.is_some() {
             let next_newline = next_newline.unwrap();
-            let res = RcSubstring::new(Rc::clone(&self.text.as_ref().unwrap()), 0..next_newline);
+            let res = RcSubstring::new(Rc::clone(self.text.as_ref().unwrap()), 0..next_newline);
             self.newline_pos = next_newline + 1;
             return Some(res);
         }

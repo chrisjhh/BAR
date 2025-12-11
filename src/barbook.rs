@@ -395,9 +395,7 @@ impl BinaryStruct for BARBookHeader {
     }
 
     fn to_bytes(&self) -> Vec<u8> {
-        let mut result: Vec<u8> = Vec::new();
-        result.push(self.book_number);
-        result.push(self.number_of_chapters);
+        let result: Vec<u8> = vec![self.book_number, self.number_of_chapters];
         result
     }
 }
@@ -498,30 +496,25 @@ impl<T: io::Read + io::Seek> BARBook<T> {
         }
         let index = chapter_number - 1;
         let chapter_option = self.chapter_index.get(usize::from(index));
-        if chapter_option.is_none() {
-            return None;
-        }
-        match chapter_option.unwrap() {
+        match chapter_option? {
             BARChapterIndexEntry::Empty => None,
             BARChapterIndexEntry::Live { additional_offset } => {
                 let file_offset = self.file_offset + additional_offset;
-                match BARChapter::build(
+                BARChapter::build(
                     Rc::clone(&self.reader),
                     self.header.book_number,
                     chapter_number,
                     file_offset,
                     self.file_version,
-                ) {
-                    Ok(chapter) => Some(chapter),
-                    _ => None,
-                }
+                )
+                .ok()
             }
         }
     }
 
     pub fn chapters<'a>(&'a self) -> BARBookIterator<'a, T> {
         BARBookIterator {
-            barbook: &self,
+            barbook: self,
             index: 1,
         }
     }

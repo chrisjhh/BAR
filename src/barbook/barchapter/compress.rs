@@ -7,7 +7,7 @@ use crate::error::BARFileError;
 pub struct CompressionError(pub CompressionAlgorithm, pub String);
 impl fmt::Display for CompressionError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} compression error: {}", self.0.to_string(), self.1)
+        write!(f, "{} compression error: {}", self.0, self.1)
     }
 }
 impl std::error::Error for CompressionError {}
@@ -118,7 +118,7 @@ pub mod zlib {
     use std::io::{Read, Write};
 
     pub fn decompress(data: &[u8]) -> Result<String> {
-        let mut decoder = ZlibDecoder::new(&data[..]);
+        let mut decoder = ZlibDecoder::new(data);
         let mut decompressed = String::new();
         let result = decoder.read_to_string(&mut decompressed);
         if result.is_err() {
@@ -132,7 +132,7 @@ pub mod zlib {
 
     pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
         let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
-        let result = encoder.write_all(&data);
+        let result = encoder.write_all(data);
         if result.is_err() {
             return Err(CompressionError(
                 ALGORITHM,
@@ -141,12 +141,10 @@ pub mod zlib {
         }
         match encoder.finish() {
             Ok(bytes) => Ok(bytes),
-            Err(err) => {
-                return Err(CompressionError(
-                    ALGORITHM,
-                    format!("Compression error: {}", err),
-                ));
-            }
+            Err(err) => Err(CompressionError(
+                ALGORITHM,
+                format!("Compression error: {}", err),
+            )),
         }
     }
 }
@@ -162,7 +160,7 @@ pub mod gzip {
     use std::io::{Read, Write};
 
     pub fn decompress(data: &[u8]) -> Result<String> {
-        let mut decoder = GzDecoder::new(&data[..]);
+        let mut decoder = GzDecoder::new(data);
         let mut decompressed = String::new();
         let result = decoder.read_to_string(&mut decompressed);
         if result.is_err() {
@@ -176,7 +174,7 @@ pub mod gzip {
 
     pub fn compress(data: &[u8]) -> Result<Vec<u8>> {
         let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
-        let result = encoder.write_all(&data);
+        let result = encoder.write_all(data);
         if result.is_err() {
             return Err(CompressionError(
                 ALGORITHM,
@@ -185,12 +183,10 @@ pub mod gzip {
         }
         match encoder.finish() {
             Ok(bytes) => Ok(bytes),
-            Err(err) => {
-                return Err(CompressionError(
-                    ALGORITHM,
-                    format!("Compression error: {}", err),
-                ));
-            }
+            Err(err) => Err(CompressionError(
+                ALGORITHM,
+                format!("Compression error: {}", err),
+            )),
         }
     }
 }

@@ -22,7 +22,7 @@ where
 
     fn write_to(&self, writer: &mut impl io::Write) -> Result<()> {
         let bytes = self.to_bytes();
-        Ok(writer.write_all(&bytes)?)
+        writer.write_all(&bytes)
     }
 
     fn read_array(size: usize, reader: &mut impl io::Read) -> Result<Vec<Self>>
@@ -34,7 +34,7 @@ where
         buf.resize(size * Self::byte_size(), b'\0');
         reader.read_exact(&mut buf[..])?;
         for i in 0..size {
-            let start: usize = usize::from(i) * Self::byte_size();
+            let start: usize = i * Self::byte_size();
             let end: usize = start + Self::byte_size();
             let entry = Self::from_bytes(&buf[start..end]);
             results.push(entry);

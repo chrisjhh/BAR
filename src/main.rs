@@ -66,31 +66,20 @@ fn main() -> io::Result<()> {
     }
 
     for book in bar.books() {
-        for chapter in book.chapters() {
-            if let Some(chapter) = chapter {
-                let mut count = 0;
-                for (_i, verse) in chapter.verses().enumerate() {
-                    if verse.contains("seven") || verse.contains("Seven") {
-                        count += 1;
-                        /*
-                        println!(
-                            "{} {}:{} {}",
-                            book.book_abbrev(),
-                            chapter.chapter_number(),
-                            i + 1,
-                            verse
-                        )
-                        */
-                    }
+        for chapter in book.chapters().flatten() {
+            let mut count = 0;
+            for verse in chapter.verses() {
+                if verse.contains("seven") || verse.contains("Seven") {
+                    count += 1;
                 }
-                if count > 5 {
-                    println!(
-                        "{} {} : {} times",
-                        book.book_abbrev(),
-                        chapter.chapter_number(),
-                        count
-                    )
-                }
+            }
+            if count > 5 {
+                println!(
+                    "{} {} : {} times",
+                    book.book_abbrev(),
+                    chapter.chapter_number(),
+                    count
+                )
             }
         }
     }
