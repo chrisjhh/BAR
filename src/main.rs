@@ -40,12 +40,11 @@ fn main() -> io::Result<()> {
     let text = chapt1.chapter_text().unwrap();
     println!("{text}");
 
-    let bar = BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\niv_v1.bar").unwrap_or_else(
-        |_err| {
+    let bar =
+        BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\esv.ibar").unwrap_or_else(|_err| {
             // ALternative on linux
             BARFile::open(r"/home/chris/data/bible/niv_v1.bar").unwrap()
-        },
-    );
+        });
     let ge = bar.book(1).unwrap();
     let chapt1 = ge.chapter(1).unwrap();
     let text = chapt1.chapter_text().unwrap();
