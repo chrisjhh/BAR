@@ -84,5 +84,10 @@ fn main() -> io::Result<()> {
         }
     }
 
+    let ps23 = bar.book_from_abbrev("Ps").unwrap().chapter(23).unwrap();
+    for (i, verse) in ps23.enumerated_verses() {
+        println!("{} {}", i, verse);
+    }
+
     Ok(())
 }

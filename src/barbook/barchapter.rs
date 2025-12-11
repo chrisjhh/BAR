@@ -4,6 +4,7 @@ use compress::CompressionError;
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::io;
+use std::iter::Zip;
 use std::rc::Rc;
 
 mod rcsubstring;
@@ -393,6 +394,19 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
             text: None,
             newline_pos: 0,
         }
+    }
+
+    pub fn enumerated_verses<'a>(
+        &'a self,
+    ) -> Zip<std::ops::RangeFrom<u8>, BARChapterIterator<'a, T>> {
+        let _ = self.fetch_first_block();
+        let start = self.current_block.borrow().as_ref().unwrap().start_verse();
+        (start..).zip(BARChapterIterator {
+            chapter: self,
+            block: None,
+            text: None,
+            newline_pos: 0,
+        })
     }
 
     fn first_block(&self) -> BARResult<BARBlock<T>> {
