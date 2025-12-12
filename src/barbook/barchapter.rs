@@ -7,7 +7,7 @@ use std::io;
 use std::iter::Zip;
 use std::rc::Rc;
 
-mod rcsubstring;
+pub mod rcsubstring;
 use rcsubstring::RcSubstring;
 
 #[derive(Debug, Clone)]

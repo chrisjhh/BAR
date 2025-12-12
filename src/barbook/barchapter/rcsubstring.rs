@@ -1,9 +1,19 @@
 /*!
 A reference-counted substring
 
-For returning part of a string held in an [Rc] that needs to live longer than the structure returning it.
-For a more complete alternative see [ArcStr]. This is intended as a lightweight alternative where the
-string is held in an [Rc] rather than an [Arc] and in simple single-threaded situations.
+For returning part of a string held in an [Rc] that needs to live longer than the source of the string itself.
+For a more complete alternative see [ArcStr](https://crates.io/crates/arcstr). This is intended as a lightweight alternative where the
+string is held in an [Rc] rather than an [Arc][std::sync::Arc] and in simple single-threaded situations.
+
+# Example
+```rust
+# use bar::barbook::barchapter::rcsubstring::RcSubstring;
+# use std::rc::Rc;
+let shared_text: Rc<String> = Rc::new(String::from("Some text"));
+let shared_substring = RcSubstring::new(Rc::clone(&shared_text), 5..9);
+drop(shared_text);
+assert_eq!(shared_substring, "text");
+```
 */
 #![warn(missing_docs)]
 use std::fmt::{Debug, Display};
@@ -13,9 +23,9 @@ use std::rc::Rc;
 /**
 A reference counted substring
 
-Stores an Rc::clone() of a Rc<String> and a range
+Stores an `Rc<String>` and a range
 The deref behaviour means this can be used just like a &str
-The advantage is the internal Rc handles the memory management so you don't have to worry about borrow lifetimes
+The advantage is the internal [Rc] handles the memory management so you don't have to worry about borrow lifetimes
 Useful for returning parts of a string that should live longer than the struct that returned them
 eg. from an iterator over a string stored in the iterator itself
 */
@@ -42,13 +52,13 @@ impl PartialEq<&str> for RcSubstring {
 impl RcSubstring {
     /// Construct a new RcSubstring
     ///
-    /// Takes the Rc<String> to wrap and the range for the substring in this text
+    /// Takes the `Rc<String>` to wrap and the range for the substring in this text
     ///
     /// # Panics
     ///
     /// Panics if `range` is invalid
     ///  - begin < end
-    ///  - either begin or end > length of Rc<String> wrapped
+    ///  - either begin or end > length of `Rc<String>` wrapped
     ///
     /// If it didn't panic here it would panic during the slice when the RcSubstring is used
     /// so it is better to catch the issues at source.

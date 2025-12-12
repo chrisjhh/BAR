@@ -28,7 +28,7 @@ use std::rc::Rc;
 
 mod error;
 
-mod barbook;
+pub mod barbook;
 use barbook::BARBook;
 
 const CURRENT_VERSION: (u8, u8) = (2, 2);
