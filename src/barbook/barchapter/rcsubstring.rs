@@ -40,6 +40,18 @@ impl PartialEq<&str> for RcSubstring {
 
 #[allow(dead_code)]
 impl RcSubstring {
+    /// Construct a new RcSubstring
+    ///
+    /// Takes the Rc<String> to wrap and the range for the substring in this text
+    ///
+    /// # Panics
+    ///
+    /// Panics if `range` is invalid
+    ///  - begin < end
+    ///  - either begin or end > length of Rc<String> wrapped
+    ///
+    /// If it didn't panic here it would panic during the slice when the RcSubstring is used
+    /// so it is better to catch the issues at source.
     pub fn new(rcstring: Rc<String>, range: Range<usize>) -> Self {
         assert!(
             range.end >= range.start,
