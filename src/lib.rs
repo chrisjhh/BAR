@@ -3,7 +3,7 @@
 //! # Example
 //! ```rust
 //! # fn main() -> Result<(), Box<dyn std::error::Error>> {
-//! use bar::BARFile;
+//! use biblearchive::BARFile;
 //! let mut verse: Option<String> = None;
 //! let bar = BARFile::open("tests/data/KJV.ibar")?;
 //! if let Some(book) = bar.book_from_abbrev("Ge") {

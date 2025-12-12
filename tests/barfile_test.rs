@@ -1,4 +1,4 @@
-use bar::{self, BARFile};
+use biblearchive::{self, BARFile};
 use crc32fast;
 
 #[test]

@@ -1,4 +1,4 @@
-use bar::BARFile;
+use biblearchive::BARFile;
 use std::{env, io};
 
 fn main() -> io::Result<()> {
