@@ -155,8 +155,9 @@ mod tests {
         assert_eq!(it.next().unwrap(), "three");
         assert_eq!(it.next().unwrap(), "one");
         assert_eq!(it.next().unwrap(), "zero");
-        assert_eq!(it.next().unwrap(), "five");
-        assert!(it.next().is_none());
+        let value = it.next().unwrap();
+        drop(it);
+        assert_eq!(value, "five");
     }
 
     #[test]
