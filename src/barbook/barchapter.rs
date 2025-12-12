@@ -1,14 +1,12 @@
 use crate::BinaryStruct;
 use crate::error::{BARFileError, BARResult};
 use compress::CompressionError;
+use rcsubstring::RcSubstring;
 use std::cell::RefCell;
 use std::fmt::Display;
 use std::io;
 use std::iter::Zip;
 use std::rc::Rc;
-
-pub mod rcsubstring;
-use rcsubstring::RcSubstring;
 
 #[derive(Debug, Clone)]
 pub enum CompressionAlgorithm {

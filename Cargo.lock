@@ -16,6 +16,7 @@ dependencies = [
  "flate2",
  "hex",
  "lzokay-native",
+ "rcsubstring",
 ]
 
 [[package]]
@@ -92,6 +93,12 @@ checksum = "a338cc41d27e6cc6dce6cefc13a0729dfbb81c262b1f519331575dd80ef3067f"
 dependencies = [
  "proc-macro2",
 ]
+
+[[package]]
+name = "rcsubstring"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1de896d8314c8bdd851cc77447f9633782714372fca86ba0bb832ea2d04279e1"
 
 [[package]]
 name = "simd-adler32"
