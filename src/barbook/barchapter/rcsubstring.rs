@@ -32,9 +32,31 @@ impl Display for RcSubstring {
     }
 }
 
+impl PartialEq<&str> for RcSubstring {
+    fn eq(&self, other: &&str) -> bool {
+        self.deref() == *other
+    }
+}
+
 #[allow(dead_code)]
 impl RcSubstring {
     pub fn new(rcstring: Rc<String>, range: Range<usize>) -> Self {
+        assert!(
+            range.end >= range.start,
+            "begin < end ({} < {}) when creating RcSubstring",
+            range.start,
+            range.end
+        );
+        assert!(
+            range.start <= rcstring.len(),
+            "start index {} out of bounds when creating RcSubstring",
+            range.start
+        );
+        assert!(
+            range.end <= rcstring.len(),
+            "end index {} out of bounds when creating RcSubstring",
+            range.end
+        );
         RcSubstring { rcstring, range }
     }
 }
@@ -52,10 +74,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_usage() {
-        let text = "Line 1
-Line 2
-Line 3";
+    fn test_basic_usage() {
+        let text = "Line 1\nLine 2\nLine 3";
         let rcstring = Rc::new(text.to_string());
         let pos = text.find("\n").unwrap();
         let rcsubstring = RcSubstring::new(rcstring.clone(), 0..pos);
@@ -72,5 +92,75 @@ Line 3";
             "RcSubstring {\n    rcstring: \"Line 1\\nLine 2\\nLine 3\",\n    range: 0..6,\n}"
         );
         assert_eq!(&rcsubstring[1..2], "i");
+    }
+
+    #[test]
+    fn test_intended_usage() {
+        struct WordIterator {
+            rcstring: Rc<String>,
+            start_pos: usize,
+        }
+        impl Iterator for WordIterator {
+            type Item = RcSubstring;
+            fn next(&mut self) -> Option<Self::Item> {
+                let pos = self.start_pos + self.rcstring[self.start_pos..].find(" ")?;
+                let value = RcSubstring::new(Rc::clone(&self.rcstring), self.start_pos..pos);
+                self.start_pos = pos + 1;
+                return Some(value);
+            }
+        }
+
+        fn generate_text(values: Vec<usize>) -> String {
+            let words = vec!["zero", "one", "two", "three", "four", "five"];
+            let mut result = String::new();
+            for i in values {
+                result.push_str(words[i]);
+                result.push_str(" ");
+            }
+            result
+        }
+
+        fn give_me_an_iterator() -> WordIterator {
+            let text = generate_text(vec![2, 3, 1, 0, 5]);
+            WordIterator {
+                rcstring: Rc::new(text),
+                start_pos: 0,
+            }
+        }
+
+        let mut it = give_me_an_iterator();
+        assert_eq!(it.next().unwrap(), "two");
+        assert_eq!(it.next().unwrap(), "three");
+        assert_eq!(it.next().unwrap(), "one");
+        assert_eq!(it.next().unwrap(), "zero");
+        assert_eq!(it.next().unwrap(), "five");
+        assert!(it.next().is_none());
+    }
+
+    #[test]
+    fn test_empty() {
+        let rcsubstring = RcSubstring::new(Rc::new(String::from("Random text")), 3..3);
+        assert_eq!(rcsubstring.len(), 0);
+        assert_eq!(rcsubstring, "");
+    }
+
+    // Test these bad uses panic with our own message - ie. not in some other downstream code
+
+    #[test]
+    #[should_panic(expected = "RcSubstring")]
+    fn test_end_before_start() {
+        let _ = RcSubstring::new(Rc::new(String::from("Random text")), 3..0);
+    }
+
+    #[test]
+    #[should_panic(expected = "RcSubstring")]
+    fn test_start_out_of_range() {
+        let _ = RcSubstring::new(Rc::new(String::from("Random text")), 100..101);
+    }
+
+    #[test]
+    #[should_panic(expected = "RcSubstring")]
+    fn test_end_out_of_range() {
+        let _ = RcSubstring::new(Rc::new(String::from("Random text")), 0..101);
     }
 }
