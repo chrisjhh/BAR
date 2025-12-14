@@ -190,6 +190,42 @@ impl<'a, T: io::Seek + io::Read> Iterator for BARFileIterator<'a, T> {
     }
 }
 
+pub struct SortedBARFileIterator<'a, T> {
+    barfile: &'a BARFile<T>,
+    sorted_indexes: Vec<u8>,
+    index: u8,
+}
+impl<'a, T: io::Seek + io::Read> Iterator for SortedBARFileIterator<'a, T> {
+    type Item = BARBook<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let current_index = self.index;
+        self.index += 1;
+        let book_index = self.sorted_indexes.get(current_index as usize)?;
+        self.barfile.book_from_index(*book_index)
+    }
+}
+impl<'a, T> SortedBARFileIterator<'a, T> {
+    fn new(barfile: &'a BARFile<T>) -> Self {
+        let mut book_indexes: Vec<(u8, u8)> = Vec::new();
+        for (i, entry) in barfile.book_index.iter().enumerate() {
+            match entry {
+                BARBookIndexEntry::Live { book_number, .. } => {
+                    book_indexes.push((i as u8, *book_number))
+                }
+                BARBookIndexEntry::Empty => break,
+            }
+        }
+        book_indexes.sort_by(|a, b| a.1.cmp(&b.1));
+        let sorted_indexes = book_indexes.iter().map(|m| m.0).collect();
+        SortedBARFileIterator {
+            barfile,
+            sorted_indexes,
+            index: 0,
+        }
+    }
+}
+
 pub struct BARFileIntoIterator<T> {
     barfile: BARFile<T>,
     index: u8,
@@ -348,6 +384,10 @@ impl<T: io::Read + io::Seek> BARFile<T> {
             barfile: self,
             index: 0,
         }
+    }
+
+    pub fn books_in_order<'a>(&'a self) -> SortedBARFileIterator<'a, T> {
+        SortedBARFileIterator::new(self)
     }
 
     pub fn book_from_index(&self, book_index: u8) -> Option<BARBook<T>> {

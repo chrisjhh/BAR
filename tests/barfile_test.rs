@@ -215,3 +215,15 @@ fn test_verse_iterator() {
         }
     }
 }
+
+#[test]
+fn test_books_in_order() {
+    // Test the books are returned in the order they occur in the bible
+    let bar =
+        BARFile::open("tests/data/KJV.ibar").expect("Failed to load KJV.ibar from tests/data");
+    let mut it = bar.books_in_order();
+    assert_eq!(it.next().unwrap().book_abbrev(), "Ge");
+    assert_eq!(it.next().unwrap().book_abbrev(), "Da");
+    assert_eq!(it.next().unwrap().book_abbrev(), "Eph");
+    assert!(it.next().is_none());
+}
