@@ -40,11 +40,12 @@ fn main() -> io::Result<()> {
     let text = chapt1.chapter_text().unwrap();
     println!("{text}");
 
-    let bar =
-        BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\esv.ibar").unwrap_or_else(|_err| {
+    let bar = BARFile::open(r"C:\Users\hamer-c\OneDrive\Backup\Bible\niv_v1.bar").unwrap_or_else(
+        |_err| {
             // ALternative on linux
             BARFile::open(r"/home/chris/data/bible/niv_v1.bar").unwrap()
-        });
+        },
+    );
     let ge = bar.book(1).unwrap();
     let chapt1 = ge.chapter(1).unwrap();
     let text = chapt1.chapter_text().unwrap();
@@ -65,6 +66,7 @@ fn main() -> io::Result<()> {
     }
 
     for book in bar.books() {
+        //println!("{}", book.book_name());
         for chapter in book.chapters().flatten() {
             let mut count = 0;
             for verse in chapter.verses() {
@@ -72,7 +74,7 @@ fn main() -> io::Result<()> {
                     count += 1;
                 }
             }
-            if count > 5 {
+            if count > 4 {
                 println!(
                     "{} {} : {} times",
                     book.book_abbrev(),

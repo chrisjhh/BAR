@@ -19,6 +19,7 @@
 //! }
 //! ```
 
+use bible_data;
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
@@ -367,7 +368,7 @@ impl<T: io::Read + io::Seek> BARFile<T> {
     }
 
     pub fn book_from_abbrev(&self, abbrev: &str) -> Option<BARBook<T>> {
-        let book_number = barbook::parse_book_abbrev(abbrev);
+        let book_number = bible_data::parse_book_abbrev(abbrev);
         match book_number {
             None => None,
             Some(number) => self.book(number as u8 + 1),
