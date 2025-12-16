@@ -19,12 +19,11 @@
 //! }
 //! ```
 
-use bible_data;
 use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
-use std::io::{self, BufReader, BufWriter};
+use std::io::{self, BufWriter};
 use std::rc::Rc;
 
 mod error;
@@ -108,7 +107,7 @@ impl BinaryStruct for BARFileHeader {
     }
 }
 
-impl BARFileHeader {
+impl Default for BARFileHeader {
     fn default() -> Self {
         let mut leader: [u8; 3] = [0; 3];
         leader.copy_from_slice("BAR".as_bytes());
@@ -255,35 +254,7 @@ impl<T: io::Seek + io::Read> IntoIterator for BARFile<T> {
 impl BARFile<File> {
     pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
         let file = File::open(file_path)?;
-        let mut reader = BufReader::new(file);
-        let header = BARFileHeader::read_from(&mut reader)?;
-        if header.leader != [b'B', b'A', b'R'] {
-            return Err(format!(
-                "Invalid BAR file. Unexpected leader: {}",
-                String::from_utf8(header.leader.to_vec()).unwrap_or("???".to_string())
-            )
-            .into());
-        }
-        if header.version_abbrev.is_empty() {
-            return Err(
-                "Invalid BAR file. Version abbrev in header not specified or corrupt.".into(),
-            );
-        }
-        if header.major_version > CURRENT_VERSION.0 {
-            return Err(format!(
-                "Unsupported future BARFile version: {}.{}",
-                header.major_version, header.minor_version
-            )
-            .into());
-        }
-        let book_index: Vec<BARBookIndexEntry> =
-            BARBookIndexEntry::read_array(usize::from(header.number_of_books), &mut reader)?;
-        let file = reader.into_inner();
-        Ok(Self {
-            file: Rc::new(RefCell::new(file)),
-            header,
-            book_index,
-        })
+        BARFile::read(file)
     }
 
     pub fn create(file_path: &str, version_abbrev: String) -> Result<Self, Box<dyn Error>> {
@@ -351,6 +322,36 @@ impl<T> BARFile<T> {
 }
 
 impl<T: io::Read + io::Seek> BARFile<T> {
+    pub fn read(mut reader: T) -> Result<Self, Box<dyn Error>> {
+        let header = BARFileHeader::read_from(&mut reader)?;
+        if header.leader != [b'B', b'A', b'R'] {
+            return Err(format!(
+                "Invalid BAR file. Unexpected leader: {}",
+                String::from_utf8(header.leader.to_vec()).unwrap_or("???".to_string())
+            )
+            .into());
+        }
+        if header.version_abbrev.is_empty() {
+            return Err(
+                "Invalid BAR file. Version abbrev in header not specified or corrupt.".into(),
+            );
+        }
+        if header.major_version > CURRENT_VERSION.0 {
+            return Err(format!(
+                "Unsupported future BARFile version: {}.{}",
+                header.major_version, header.minor_version
+            )
+            .into());
+        }
+        let book_index: Vec<BARBookIndexEntry> =
+            BARBookIndexEntry::read_array(usize::from(header.number_of_books), &mut reader)?;
+        Ok(Self {
+            file: Rc::new(RefCell::new(reader)),
+            header,
+            book_index,
+        })
+    }
+
     pub fn book(&self, book_number: u8) -> Option<BARBook<T>> {
         let mut file_offset: u32 = 0;
         for entry in &self.book_index {
@@ -428,22 +429,8 @@ mod tests {
 
     impl<'a> BARFile<Cursor<&'a mut Vec<u8>>> {
         fn open_from_memory(buf: &'a mut Vec<u8>) -> Self {
-            let mut file = Cursor::new(buf);
-            let header = BARFileHeader::read_from(&mut file).unwrap();
-            if header.major_version > CURRENT_VERSION.0 {
-                panic!(
-                    "Unsupported future BARFile version: {}.{}",
-                    header.major_version, header.minor_version
-                )
-            }
-            let book_index: Vec<BARBookIndexEntry> =
-                BARBookIndexEntry::read_array(usize::from(header.number_of_books), &mut file)
-                    .unwrap();
-            Self {
-                file: Rc::new(RefCell::new(file)),
-                header,
-                book_index,
-            }
+            let file = Cursor::new(buf);
+            BARFile::read(file).unwrap()
         }
 
         fn create_in_memory(buf: &'a mut Vec<u8>, version_abbrev: String) -> Self {
