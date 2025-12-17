@@ -23,7 +23,7 @@ use std::cell::RefCell;
 use std::error::Error;
 use std::fmt;
 use std::fs::File;
-use std::io::{self, BufWriter};
+use std::io::{self, BufWriter, SeekFrom};
 use std::rc::Rc;
 
 mod error;
@@ -350,6 +350,10 @@ impl<T: io::Read + io::Seek> BARFile<T> {
             header,
             book_index,
         })
+    }
+
+    pub fn len(&self) -> u64 {
+        self.file.borrow_mut().seek(SeekFrom::End(0)).unwrap_or(0)
     }
 
     pub fn book(&self, book_number: u8) -> Option<BARBook<T>> {

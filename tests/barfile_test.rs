@@ -83,12 +83,15 @@ fn test_iterators() {
     for book in bar.books() {
         output.push(book.book_name().to_string());
         output.push(format!("Chapters: {}", book.number_of_chapters()));
+        let mut count = 0;
         for chapter in book.chapters() {
             if chapter.is_some() {
                 output.push(format!("- Chapter {}", chapter.unwrap().chapter_number()));
             }
-            assert_eq!(book.chapters().count(), book.number_of_chapters() as usize);
+            count += 1;
         }
+        assert_eq!(book.chapters().count(), book.number_of_chapters() as usize);
+        assert_eq!(count, book.number_of_chapters() as u32);
     }
     assert_eq!(
         output,
