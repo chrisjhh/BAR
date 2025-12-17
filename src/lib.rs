@@ -24,6 +24,7 @@ use std::error::Error;
 use std::fmt;
 use std::fs::File;
 use std::io::{self, BufWriter, SeekFrom};
+use std::path::Path;
 use std::rc::Rc;
 
 mod error;
@@ -252,12 +253,15 @@ impl<T: io::Seek + io::Read> IntoIterator for BARFile<T> {
 
 #[allow(dead_code)]
 impl BARFile<File> {
-    pub fn open(file_path: &str) -> Result<Self, Box<dyn Error>> {
+    pub fn open(file_path: impl AsRef<Path>) -> Result<Self, Box<dyn Error>> {
         let file = File::open(file_path)?;
         BARFile::read(file)
     }
 
-    pub fn create(file_path: &str, version_abbrev: String) -> Result<Self, Box<dyn Error>> {
+    pub fn create(
+        file_path: impl AsRef<Path>,
+        version_abbrev: String,
+    ) -> Result<Self, Box<dyn Error>> {
         let default = BARFileHeader::default();
         let header = BARFileHeader {
             version_abbrev,
@@ -267,7 +271,7 @@ impl BARFile<File> {
     }
 
     pub fn create_with_options(
-        file_path: &str,
+        file_path: impl AsRef<Path>,
         header: BARFileHeader,
     ) -> Result<Self, Box<dyn Error>> {
         let file = File::create_new(file_path)?;

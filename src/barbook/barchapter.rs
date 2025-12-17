@@ -7,6 +7,7 @@ use std::fmt::Display;
 use std::io;
 use std::iter::Zip;
 use std::rc::Rc;
+use std::time::{Duration, Instant};
 
 #[derive(Debug, Clone)]
 pub enum CompressionAlgorithm {
@@ -175,6 +176,14 @@ impl BlockHeader {
             BlockHeader::Ver2(_) => BlockHeaderV2::byte_size(),
         }
     }
+}
+
+pub struct ChapterDetails {
+    pub number_of_blocks: u32,
+    pub compression_algorithm: CompressionAlgorithm,
+    pub compressed_size: u32,
+    pub uncompressed_size: u32,
+    pub decompress_time: Duration,
 }
 
 #[allow(dead_code)]
@@ -392,6 +401,54 @@ impl<T: io::Read + io::Seek> BARChapter<T> {
             text: None,
             newline_pos: 0,
         }
+    }
+
+    pub fn details(&self) -> BARResult<ChapterDetails> {
+        self.fetch_first_block()?;
+        let compression_algorithm = self
+            .current_block
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .compression_algorith()
+            .clone();
+        let mut compressed_size: u32 = self
+            .current_block
+            .borrow()
+            .as_ref()
+            .unwrap()
+            .header
+            .block_size();
+        let now = Instant::now();
+        self.current_block
+            .borrow_mut()
+            .as_ref()
+            .unwrap()
+            .decompress()?;
+        let mut decompress_time = now.elapsed();
+        let mut uncompressed_size: u32 =
+            self.current_block.borrow().as_ref().unwrap().text()?.len() as u32;
+        let mut number_of_blocks = 1;
+        while self.fetch_next_block()? {
+            number_of_blocks += 1;
+            compressed_size += self
+                .current_block
+                .borrow()
+                .as_ref()
+                .unwrap()
+                .header
+                .block_size();
+            let now = Instant::now();
+            uncompressed_size += self.current_block.borrow().as_ref().unwrap().text()?.len() as u32;
+            decompress_time += now.elapsed();
+        }
+        Ok(ChapterDetails {
+            number_of_blocks,
+            compression_algorithm,
+            compressed_size,
+            uncompressed_size,
+            decompress_time,
+        })
     }
 
     pub fn enumerated_verses<'a>(
