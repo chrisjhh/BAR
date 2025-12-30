@@ -1,7 +1,13 @@
 [package]
 name = "biblearchive"
-version = "0.1.0"
+version = "0.1.1-alpha.1"
 edition = "2024"
+authors = ["Chris Hamer-Hodges <chris.hhodges@gmail.com>"]
+license = "Apache-2.0 OR MIT"
+keywords = ["bible", "archive"]
+description = "A Bible archive format designed to be fast and compact."
+repository = "https://github.com/chrisjhh/BAR"
+readme = "README.md"
 
 [dependencies]
 flate2 = "1.1.5"

@@ -9,9 +9,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 
 [[package]]
+name = "bible-data"
+version = "0.1.0"
+source = "git+https://github.com/chrisjhh/bible-data#765296eddd78374d4b09684276849da060f6c77a"
+
+[[package]]
 name = "biblearchive"
 version = "0.1.0"
 dependencies = [
+ "bible-data",
  "crc32fast",
  "flate2",
  "hex",
@@ -96,9 +102,9 @@ dependencies = [
 
 [[package]]
 name = "rcsubstring"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1de896d8314c8bdd851cc77447f9633782714372fca86ba0bb832ea2d04279e1"
+checksum = "db9f044517a5f9ce9bcf637c63503b9c2bdd853fa4e72e6d56de117dc27e8eeb"
 
 [[package]]
 name = "simd-adler32"
